@@ -28,9 +28,14 @@ def dashboard():
     if current_user.role == 'faculty':
         # Implement Access Control: HOD vs Regular Faculty
         if current_user.position == 'hod' and current_user.department:
-            # HOD: See all pending activities from students in their department
-            # Join with User (aliased as student) to filter by department
-            query = query.join(User, StudentActivity.student_id == User.id).filter(User.department == current_user.department)
+            # HOD: See activities from their department OR directly assigned to them
+            from sqlalchemy import or_
+            query = query.outerjoin(User, StudentActivity.student_id == User.id).filter(
+                or_(
+                    User.department == current_user.department,
+                    StudentActivity.assigned_reviewer_id == current_user.id
+                )
+            )
         else:
             # Regular Faculty: See only assigned activities
             query = query.filter(StudentActivity.assigned_reviewer_id == current_user.id)
@@ -54,20 +59,39 @@ def dashboard():
 @role_required('faculty', 'admin')
 def review_request(act_id):
     activity = StudentActivity.query.get_or_404(act_id)
-    # Optional: Check if assigned to this faculty
+    # Access Control
     if current_user.role == 'faculty':
         is_hod = (current_user.position == 'hod' and activity.student.department == current_user.department)
         is_assigned = (activity.assigned_reviewer_id == current_user.id)
         
         if not (is_assigned or is_hod):
              return jsonify({'error': "You are not assigned to review this activity."}), 403
-         
+
+    # Build certificate URL
+    cert_url = None
+    if activity.certificate_file:
+        from flask import url_for as flask_url_for
+        try:
+            cert_url = flask_url_for('student.serve_upload', filename=activity.certificate_file, _external=True)
+        except Exception:
+            cert_url = f"/api/student/uploads/{activity.certificate_file}"
+
     return jsonify({
         'id': activity.id,
         'title': activity.title,
         'student_name': activity.student.full_name,
-        'description': "Details...", # Add more fields as needed
-        'certificate_url': f"/uploads/{activity.certificate_file}" # Construct URL
+        'student_roll': activity.student.institution_id,
+        'student_department': activity.student.department,
+        'category': activity.activity_type.name if activity.activity_type else (activity.custom_category or 'Other'),
+        'issuer_name': activity.issuer_name or '',
+        'organizer': activity.organizer or '',
+        'start_date': str(activity.start_date) if activity.start_date else None,
+        'end_date': str(activity.end_date) if activity.end_date else None,
+        'status': activity.status,
+        'verification_mode': activity.verification_mode,
+        'certificate_url': cert_url,
+        'certificate_file': activity.certificate_file,
+        'created_at': activity.created_at.isoformat()
     })
 
 @faculty_bp.route('/approve/<int:act_id>', methods=['POST'])

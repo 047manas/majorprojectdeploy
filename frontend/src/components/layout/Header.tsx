@@ -1,9 +1,8 @@
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import api from '@/services/api';
 import { Bell, LogOut, User as UserIcon, Moon, Sun, Menu } from 'lucide-react';
-import { cn } from '@/lib/utils';
 
 interface HeaderProps {
     onToggleMobileMenu?: () => void;
@@ -16,16 +15,22 @@ const Breadcrumbs = () => {
 
     return (
         <nav className="flex items-center text-sm text-slate-500">
-            <span className="hover:text-slate-700">Home</span>
+            <Link to="/" className="hover:text-indigo-600 transition-colors">Home</Link>
             {pathnames.map((value, index) => {
                 const to = `/${pathnames.slice(0, index + 1).join('/')}`;
                 const isLast = index === pathnames.length - 1;
                 return (
                     <React.Fragment key={to}>
                         <span className="mx-2">/</span>
-                        <span className={cn("capitalize", isLast ? "text-indigo-600 font-medium" : "")}>
-                            {value.replace('-', ' ')}
-                        </span>
+                        {isLast ? (
+                            <span className="capitalize text-indigo-600 font-medium">
+                                {value.replace('-', ' ')}
+                            </span>
+                        ) : (
+                            <Link to={to} className="capitalize hover:text-indigo-600 transition-colors">
+                                {value.replace('-', ' ')}
+                            </Link>
+                        )}
                     </React.Fragment>
                 );
             })}

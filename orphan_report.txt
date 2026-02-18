@@ -1,0 +1,74 @@
+=== ALL ACTIVITIES BY STATUS ===
+  auto_verified: 5
+  pending: 2
+  faculty_verified: 7
+Total activities in DB: 14
+
+=== PENDING ACTIVITIES ===
+  id=23 | Winner in hackathon | student=studentIT(IT) | reviewer=cseHod@college.edu
+  id=21 | Top 10 Holders | student=studentMech(MECH) | reviewer=cseHod@college.edu
+
+=== FILES IN UPLOADS (C:\Users\manas\Music\MajorPorjectProtypingTrails\app\uploads) ===
+  Files on disk: 27
+    .gitkeep (0 bytes)
+    0c09902b268f460295cd79168da0627a_workshop2.pdf (203270 bytes)
+    12aef385d6504c8a96696fa0797af62d_ms10.pdf (155096 bytes)
+    1762756792799.pdf (1351501 bytes)
+    22C91A6919_20251206_132706_063.pdf (426609 bytes)
+    22C91A6919_20251206_185725_370.pdf (426609 bytes)
+    22C91A6919_20251206_185822_697.pdf (349897 bytes)
+    271eef7f521a45eb92e05fd0982f5aa3_cs504.pdf (244819 bytes)
+    7580f49c22e943638618be35ca05c487_1770992434928.pdf (160912 bytes)
+    7af09cd6304f4c799338da07a09a5c0c_workshop6.jpeg (322875 bytes)
+    96c41bc0f0ba4adb9a877701f8260e7b_nptel11.pdf (1470707 bytes)
+    CS50x_certificate.pdf (426609 bytes)
+    Coursera_AW0R3RYZYU5E.pdf (285987 bytes)
+    Coursera_WJ9X58UVDI7Y.pdf (349897 bytes)
+    IBMDesign20251017-30-8canfu.pdf (77349 bytes)
+    IBMDesign20251017-31-fbi4h5.pdf (77252 bytes)
+    IBMDesign20251017-31-oxhwnc.pdf (77387 bytes)
+    IBMDesign20251017-32-1plns2.pdf (78441 bytes)
+    IBMDesign20251017-32-aoe9qt.pdf (78386 bytes)
+    IBMDesign20251017-32-t85cig.pdf (74993 bytes)
+    WhatsApp_Image_2025-11-04_at_14.56.50_d9abd9cb.jpg (95282 bytes)
+    acaf6d32f97a4b318a188e2d2b702075_Screenshot_2026-02-16_100618.png (361337 bytes)
+    c63260f1dec04fa4944cfec7ec17fb89_coursra3.pdf (314161 bytes)
+    cf69ee8d45214003add343abc9483a4a_ms2.pdf (293726 bytes)
+    cs50.jpeg (79089 bytes)
+    d3d7a75df51e46ebb86fb4e59c06cc6b_Screenshot_2026-02-16_100104.png (412091 bytes)
+    ms6.jpg (29445 bytes)
+
+  Files referenced in DB: 14
+    0c09902b268f460295cd79168da0627a_workshop2.pdf
+    12aef385d6504c8a96696fa0797af62d_ms10.pdf
+    271eef7f521a45eb92e05fd0982f5aa3_cs504.pdf
+    7580f49c22e943638618be35ca05c487_1770992434928.pdf
+    7af09cd6304f4c799338da07a09a5c0c_workshop6.jpeg
+    96c41bc0f0ba4adb9a877701f8260e7b_nptel11.pdf
+    IBMDesign20251017-30-8canfu.pdf
+    IBMDesign20251017-31-fbi4h5.pdf
+    IBMDesign20251017-31-oxhwnc.pdf
+    IBMDesign20251017-32-1plns2.pdf
+    acaf6d32f97a4b318a188e2d2b702075_Screenshot_2026-02-16_100618.png
+    c63260f1dec04fa4944cfec7ec17fb89_coursra3.pdf
+    cf69ee8d45214003add343abc9483a4a_ms2.pdf
+    d3d7a75df51e46ebb86fb4e59c06cc6b_Screenshot_2026-02-16_100104.png
+
+=== ORPHANED FILES (on disk but NOT in DB) ===
+  Count: 13
+  ORPHAN: .gitkeep (0 bytes)
+  ORPHAN: 1762756792799.pdf (1351501 bytes)
+  ORPHAN: 22C91A6919_20251206_132706_063.pdf (426609 bytes)
+  ORPHAN: 22C91A6919_20251206_185725_370.pdf (426609 bytes)
+  ORPHAN: 22C91A6919_20251206_185822_697.pdf (349897 bytes)
+  ORPHAN: CS50x_certificate.pdf (426609 bytes)
+  ORPHAN: Coursera_AW0R3RYZYU5E.pdf (285987 bytes)
+  ORPHAN: Coursera_WJ9X58UVDI7Y.pdf (349897 bytes)
+  ORPHAN: IBMDesign20251017-32-aoe9qt.pdf (78386 bytes)
+  ORPHAN: IBMDesign20251017-32-t85cig.pdf (74993 bytes)
+  ORPHAN: WhatsApp_Image_2025-11-04_at_14.56.50_d9abd9cb.jpg (95282 bytes)
+  ORPHAN: cs50.jpeg (79089 bytes)
+  ORPHAN: ms6.jpg (29445 bytes)
+
+=== MISSING FILES (in DB but NOT on disk) ===
+  Count: 0
