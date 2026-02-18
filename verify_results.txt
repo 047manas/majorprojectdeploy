@@ -1,0 +1,13 @@
+Login: 200 success=True
+OK   KPIs: dict
+OK   Distribution: list
+OK   DeptPart: list
+OK   YearlyTrend: list
+OK   VerifSummary: dict
+OK   Insights: dict
+OK   Meta: dict
+OK   StudentList: dict
+OK   EventsSummary: list
+FAIL AdminUsers: 'list' object has no attribute 'get'
+FAIL ActivityTypes: 'list' object has no attribute 'get'
+FAIL FacultyQueue: 'list' object has no attribute 'get'

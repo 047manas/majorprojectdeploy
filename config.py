@@ -20,3 +20,10 @@ class Config:
     # Let's make it absolute to be safe.
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'app', 'uploads')
+
+    # Session/Cookie Settings
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SECURE = False # Dev is HTTP
+    SESSION_COOKIE_SAMESITE = 'Lax'
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SECURE = False

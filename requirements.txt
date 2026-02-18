@@ -10,3 +10,7 @@ opencv-python
 Pillow
 pandas
 openpyxl
+flask-migrate
+flask-cors
+python-dotenv
+filetype

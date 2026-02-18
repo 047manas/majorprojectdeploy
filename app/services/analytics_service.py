@@ -406,6 +406,20 @@ class AnalyticsService:
         All data retrieval must start here.
         """
         query = db.session.query(StudentActivity).join(User, StudentActivity.student_id == User.id)
+        
+        # Exclude soft-deleted activities and users
+        query = query.filter(StudentActivity.is_deleted == False)
+        query = query.filter(User.is_deleted == False)
+        
+        # Exclude orphaned activities (Parent Type deleted and no custom category)
+        # This cleans up data from hard-deleted ActivityTypes
+        query = query.filter(
+            or_(
+                StudentActivity.activity_type_id.isnot(None), 
+                func.coalesce(StudentActivity.custom_category, '') != ''
+            )
+        )
+        
         query = AnalyticsService._apply_role_scope(query)
         query = AnalyticsService._apply_filters(query, filters)
         return query
@@ -417,14 +431,22 @@ class AnalyticsService:
     @staticmethod
     def get_institution_kpis(filters=None):
         """
-        [FIXED] KPIs with Strict Identity & Zero State
+        [FIXED] KPIs with Integrity Impact
+        Deletion of certificates now 'Impacts' the verification rate.
         """
         base_q = AnalyticsService._get_base_query(filters)
         
-        # 1. Total Students (Active) - Sourced from User table directly for normalization
-        # Note: 'Total Students' in KPI usually means relevant students context. 
-        # But per request, let's keep it scoped to Active students in DB matching Dept/Batch filters.
-        total_students_q = db.session.query(func.count(User.id)).filter(User.role == 'student', User.is_active == True)
+        # 1. Total Students (Active)
+        total_students_q = db.session.query(func.count(User.id)).filter(
+            User.role == 'student', 
+            User.is_active == True,
+            User.is_deleted == False
+        )
+        
+        if current_user and current_user.is_authenticated and current_user.role == 'faculty':
+             if getattr(current_user, 'position', None) == 'hod' and current_user.department:
+                  total_students_q = total_students_q.filter(User.department == current_user.department)
+
         if filters:
             if filters.get('department'):
                 total_students_q = total_students_q.filter(User.department == filters['department'])
@@ -437,8 +459,16 @@ class AnalyticsService:
             func.count(distinct(AnalyticsService._get_event_identity_expr()))
         ).scalar() or 0
         
-        # 3. Total Participations
+        # 3. Total Participations (Active Only)
         total_participations = base_q.with_entities(func.count(StudentActivity.id)).scalar() or 0
+        
+        # [NEW] Total Submissions (Including Deleted for Integrity Impact)
+        # We manually build the query to bypass the active-only filter of base_q
+        total_submissions_q = db.session.query(func.count(StudentActivity.id)).join(User, StudentActivity.student_id == User.id)
+        # Apply HOD/Department filters but NOT the is_deleted check for impact
+        total_submissions_q = AnalyticsService._apply_role_scope(total_submissions_q)
+        total_submissions_q = AnalyticsService._apply_filters(total_submissions_q, filters)
+        total_submissions = total_submissions_q.scalar() or 0
         
         # 4. Unique Students
         unique_students = base_q.with_entities(func.count(distinct(StudentActivity.student_id))).scalar() or 0
@@ -449,24 +479,31 @@ class AnalyticsService:
         # 6. Avg Activities
         avg_activities_per_student = round((total_participations / unique_students), 2) if unique_students > 0 else 0
         
-        # 7. Verified Rate
-        verified_count = base_q.filter(or_(
-            StudentActivity.status == 'faculty_verified',
-            StudentActivity.status == 'auto_verified'
-        )).with_entities(func.count(StudentActivity.id)).scalar() or 0
-        
-        verified_rate = round((verified_count / total_participations * 100), 1) if total_participations > 0 else 0
+        # 7. Verified & Pending Counts
+        status_counts = base_q.with_entities(
+            func.sum(case((or_(StudentActivity.status == 'faculty_verified', StudentActivity.status == 'auto_verified'), 1), else_=0)).label('verified'),
+            func.sum(case((StudentActivity.status == 'pending', 1), else_=0)).label('pending')
+        ).first()
 
-        print(f"DEBUG KPI: Events={total_events}, Part={total_participations}, Unique={unique_students}")
+        verified_count = int(status_counts.verified or 0) if status_counts else 0
+        pending_count = int(status_counts.pending or 0) if status_counts else 0
+        
+        # [IMPACT] Rate is verified vs ALL submissions ever (shows cleaning impact)
+        # If user deletes a fake one, the rate drops below 100%
+        verified_rate = round((verified_count / total_submissions * 100), 1) if total_submissions > 0 else 0
 
         return {
             "total_students": total_students,
             "total_events": total_events,
             "total_participations": total_participations,
+            "total_submissions": total_submissions,
             "unique_students": unique_students,
             "engagement_rate": engagement_rate,
             "avg_activities_per_student": avg_activities_per_student,
-            "verified_rate": verified_rate
+            "verified_rate": verified_rate,
+            "verified_count": verified_count,
+            "pending_count": pending_count,
+            "integrity_impact": total_submissions - total_participations # Count of deleted records
         }
 
     @staticmethod
@@ -487,7 +524,7 @@ class AnalyticsService:
         
         results = query.all()
         if not results:
-            return {"empty": True}
+            return []
             
         return [{
             "category": r.category_name, 
@@ -513,7 +550,7 @@ class AnalyticsService:
         
         results = query.all()
         if not results:
-            return {"empty": True}
+            return []
 
         # Fetch total students per dept for normalization (Active Only context)
         all_depts = db.session.query(User.department, func.count(User.id))\
@@ -537,7 +574,7 @@ class AnalyticsService:
                 "total": total
             })
             
-        return sorted(data, key=lambda x: x['engagement_percent'], reverse=True)
+        return sorted(data, key=lambda x: (x['engagement_percent'], x['total'], x['participations']), reverse=True)
 
     @staticmethod
     def get_yearly_trend(filters=None):
@@ -557,7 +594,7 @@ class AnalyticsService:
         
         results = query.all()
         if not results:
-            return {"empty": True}
+            return []
             
         return [{
             "year": int(r.year) if r.year != 0 else "Unspecified",
@@ -580,14 +617,14 @@ class AnalyticsService:
         
         row = query.first()
         if not row:
-             return {"empty": True}
+             return {"verified": 0, "not_verified": 0, "details": {"pending": 0, "rejected": 0}}
              
         verified = int(row[0] or 0)
         pending = int(row[1] or 0)
         rejected = int(row[2] or 0)
         
         if (verified + pending + rejected) == 0:
-            return {"empty": True}
+            return {"verified": 0, "not_verified": 0, "details": {"pending": 0, "rejected": 0}}
 
         return {
             "verified": verified,
@@ -629,6 +666,7 @@ class AnalyticsService:
     def _serialize_student_item(item, include_certificate=False):
         """Serialize a StudentActivity ORM object to dict."""
         row = {
+            "id": item.id,
             "student_name": item.student.full_name,
             "roll_number": item.student.institution_id,
             "department": item.student.department,
@@ -636,7 +674,9 @@ class AnalyticsService:
             "status": item.status,
             "category": item.activity_type.name if item.activity_type else (item.custom_category or 'Other'),
             "date": str(item.start_date or item.created_at.date()),
-            "verification_mode": item.verification_mode or 'N/A'
+            "verification_mode": item.verification_mode or 'N/A',
+            "faculty_incharge_id": item.activity_type.faculty_incharge_id if item.activity_type else None,
+            "activity_type_id": item.activity_type_id
         }
         if include_certificate:
             cert_url = None
@@ -780,33 +820,39 @@ class AnalyticsService:
         start_time = time.time()
         
         insights = {
-            "top_dept": "N/A", "top_dept_val": 0,
+            "top_dept": "N/A", "top_dept_val": 0, "top_dept_list": [],
             "low_dept": "N/A", "low_dept_val": 0,
             "top_event": "N/A", "top_event_val": 0,
-            "top_category": "N/A",  "top_category_val": 0,
+            "top_category": "N/A",  "top_category_val": 0, "top_category_list": [],
             "verification_efficiency": 0,
             "low_engagement_depts": [],
             "risk_events": []
         }
         
-        # 1. Dept Performance
+        # 1. Dept Performance (Handle Ties)
         dept_stats = AnalyticsService.get_department_participation(filters)
         if dept_stats and not isinstance(dept_stats, dict):
-            top = dept_stats[0]
+            # Find all departments with the top percentage
+            top_val = dept_stats[0]['engagement_percent']
+            tied_depts = [d['department'] for d in dept_stats if d['engagement_percent'] == top_val]
+            
+            insights['top_dept'] = ", ".join(tied_depts) if len(tied_depts) <= 3 else f"{len(tied_depts)} Depts"
+            insights['top_dept_val'] = top_val
+            insights['top_dept_list'] = tied_depts
+            
             low = dept_stats[-1]
-            insights['top_dept'] = top['department']
-            insights['top_dept_val'] = top['engagement_percent']
             insights['low_dept'] = low['department']
             insights['low_dept_val'] = low['engagement_percent']
             
             insights['low_engagement_depts'] = [d['department'] for d in dept_stats if d['engagement_percent'] < 30]
 
-        # 2. Event Performance
+        # 2. Event Performance (Handle Ties)
         events = AnalyticsService._get_event_summary_list(filters)
         if events:
-            top_event = max(events, key=lambda x: x['Unique Students'])
-            insights['top_event'] = top_event['Event Title']
-            insights['top_event_val'] = top_event['Unique Students']
+            top_val = max(e['Unique Students'] for e in events)
+            tied_events = [e['Event Title'] for e in events if e['Unique Students'] == top_val]
+            insights['top_event'] = tied_events[0] # Usually too long for comma list
+            insights['top_event_val'] = top_val
             
             risk_list = []
             for e in events:
@@ -816,12 +862,19 @@ class AnalyticsService:
                     risk_list.append(e['Event Title'])
             insights['risk_events'] = risk_list
 
-        # 3. Category Performance
+        # 3. Category Performance (Handle Ties)
         dist = AnalyticsService.get_event_distribution(filters)
         if dist and not isinstance(dist, dict):
-            top_cat = max(dist, key=lambda x: x['participations'])
-            insights['top_category'] = top_cat['category']
-            insights['top_category_val'] = top_cat['participations']
+            # Sort by participations (popular) but track distinct event count
+            top_cat_data = max(dist, key=lambda x: x['participations'])
+            top_val = top_cat_data['participations']
+            tied_cats = [x['category'] for x in dist if x['participations'] == top_val]
+            
+            insights['top_category'] = ", ".join(tied_cats) if len(tied_cats) <= 2 else f"{len(tied_cats)} Categories"
+            insights['top_category_val'] = top_val
+            insights['top_category_list'] = tied_cats
+            # Add event count for the top category (for accurate labeling)
+            insights['top_category_events'] = top_cat_data['count']
             
         # 4. Verification Efficiency
         kpis = AnalyticsService.get_institution_kpis(filters)
@@ -1124,3 +1177,71 @@ class AnalyticsService:
         writer.close()
         output.seek(0)
         return output
+
+    @staticmethod
+    def get_event_summary_list(filters=None):
+        """Public wrapper for event summary list (All Events Drilldown).
+        Transforms Excel-style keys to API-friendly keys for frontend."""
+        raw = AnalyticsService._get_event_summary_list(filters)
+        return [{
+            "id": f"{item.get('Event Category', 'Unknown')}-{item.get('Event Title', 'Unknown')}",
+            "title": item.get("Event Title", "Unknown"),
+            "category": item.get("Event Category", "Unknown"),
+            "start_date": str(item.get("Event Date")) if item.get("Event Date") else None,
+            "participation_count": item.get("Total Participants", 0),
+            "unique_students": item.get("Unique Students", 0),
+            "verified_count": item.get("Verified Count", 0),
+            "pending_count": item.get("Pending Count", 0),
+        } for item in raw]
+
+    @staticmethod
+    def get_events_by_category(category, filters=None):
+        """
+        Drilldown: Get distinct events for a category.
+        """
+        base_q = AnalyticsService._get_base_query(filters)
+        base_q = base_q.outerjoin(ActivityType, StudentActivity.activity_type_id == ActivityType.id)
+        
+        # Filter by Category
+        if category == 'Other / Custom':
+             base_q = base_q.filter(or_(ActivityType.id.is_(None), ActivityType.name.is_(None)))
+        else:
+             # Match either ActivityType name or Custom Category if strictly matching string
+             base_q = base_q.filter(func.coalesce(ActivityType.name, StudentActivity.custom_category) == category)
+
+        event_date_expr = AnalyticsService._get_event_date_expr()
+        identity_expr = AnalyticsService._get_event_identity_expr()
+        
+        q = base_q.with_entities(
+            identity_expr.label('id'),
+            func.max(case((ActivityType.id.isnot(None), literal('')), else_=func.lower(func.trim(StudentActivity.title)))).label('title_key'),
+            func.max(StudentActivity.title).label('raw_title'),
+            func.max(event_date_expr).label('date'),
+            func.count(StudentActivity.id).label('participation_count'),
+            func.count(distinct(StudentActivity.student_id)).label('unique_students')
+        ).group_by(identity_expr)
+        
+        results = q.all()
+        
+        return [{
+            "id": r.id,
+            "title": r.raw_title,
+            "start_date": r.date.isoformat() if r.date else None,
+            "participation_count": r.participation_count,
+            "unique_students": r.unique_students
+        } for r in results]
+
+    @staticmethod
+    def get_students_for_event(event_identity, filters=None):
+        """
+        Drilldown: Get students for a specific event identity.
+        """
+        base_q = AnalyticsService._get_base_query(filters)
+        identity_expr = AnalyticsService._get_event_identity_expr()
+        
+        # Filter by Event Identity
+        q = base_q.filter(identity_expr == event_identity)
+        
+        results = q.order_by(StudentActivity.created_at.desc()).all()
+        
+        return [AnalyticsService._serialize_student_item(item, include_certificate=True) for item in results]

@@ -16,8 +16,6 @@ class User(UserMixin, db.Model):
     position = db.Column(db.String(50), nullable=True) # e.g. 'hod'
     
     # Extended Fields
-    
-    # Extended Fields
     full_name = db.Column(db.String(100), nullable=False, default="Unknown")
     department = db.Column(db.String(100), nullable=True) # For Faculty AND Students
     batch_year = db.Column(db.String(20), nullable=True) # Legacy field found in DB
@@ -26,6 +24,8 @@ class User(UserMixin, db.Model):
     institution_id = db.Column(db.String(64), unique=True, nullable=True, index=True)
     
     is_active = db.Column(db.Boolean, default=True)
+    is_deleted = db.Column(db.Boolean, default=False)
+    deletion_reason = db.Column(db.Text, nullable=True)
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -38,6 +38,23 @@ class User(UserMixin, db.Model):
     def is_faculty(self):
         return self.role == 'faculty'
 
+class Notification(db.Model):
+    __tablename__ = 'notifications'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    title = db.Column(db.String(200), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    type = db.Column(db.String(50), default='info') # 'info', 'warning', 'error', 'success'
+    is_read = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relationship
+    user = db.relationship('User', backref=db.backref('notifications', lazy=True, cascade="all, delete-orphan"))
+
+    def __repr__(self):
+        return f'<Notification {self.id} for User {self.user_id}>'
+
 class ActivityType(db.Model):
     __tablename__ = 'activity_types'
     
@@ -45,7 +62,7 @@ class ActivityType(db.Model):
     name = db.Column(db.String(100), nullable=False, unique=True)
     description = db.Column(db.String(255), nullable=True)
     
-    # Changed: Responsible Person instead of Dept String
+    # Responsible Person instead of Dept String
     faculty_incharge_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     
     # Relationship
@@ -59,7 +76,7 @@ class StudentActivity(db.Model):
     
     id = db.Column(db.Integer, primary_key=True)
     student_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
-    activity_type_id = db.Column(db.Integer, db.ForeignKey('activity_types.id'), nullable=True, index=True)
+    activity_type_id = db.Column(db.Integer, db.ForeignKey('activity_types.id', ondelete='SET NULL'), nullable=True, index=True)
     custom_category = db.Column(db.String(100), nullable=True)
     
     title = db.Column(db.String(200), nullable=False)
@@ -81,14 +98,17 @@ class StudentActivity(db.Model):
     status = db.Column(db.String(50), default='pending', index=True) # pending, auto_verified, faculty_verified, rejected
     auto_decision = db.Column(db.String(255), nullable=True)
     
-    # New: Public Verification Token
+    # Public Verification Token
     verification_token = db.Column(db.String(64), unique=True, nullable=True, index=True)
     
-    # New: Track verification method (e.g., 'qr+link', 'link_only')
+    # Track verification method (e.g., 'qr+link', 'link_only')
     verification_mode = db.Column(db.String(50), nullable=True)
     
-    # New: Detailed JSON logs for auto-verification
+    # Detailed JSON logs for auto-verification
     auto_details = db.Column(db.Text, nullable=True)
+    
+    is_deleted = db.Column(db.Boolean, default=False, index=True)
+    deletion_reason = db.Column(db.Text, nullable=True)
     
     faculty_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     assigned_reviewer_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)

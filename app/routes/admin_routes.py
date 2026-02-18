@@ -1,12 +1,12 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
+from flask import Blueprint, redirect, url_for, flash, request, abort, jsonify, current_app
+import os
 from flask_login import login_required, current_user
-from app.models import User, db, ActivityType, StudentActivity
+from app.models import User, db, ActivityType, StudentActivity, Notification
 from werkzeug.security import generate_password_hash
 from functools import wraps
 
 admin_bp = Blueprint('admin', __name__)
 
-# --- Auth Helpers ---
 # --- Auth Helpers ---
 def role_required(*roles):
     def decorator(f):
@@ -14,60 +14,58 @@ def role_required(*roles):
         @login_required
         def wrapped(*args, **kwargs):
             if current_user.role not in roles:
-                flash("You are not authorized to access that page.", "error")
-                # Redirect based on role to prevent loops
-                if current_user.role == 'student':
-                    return redirect(url_for('student.dashboard'))
-                elif current_user.role == 'faculty':
-                    return redirect(url_for('faculty.dashboard'))
-                elif current_user.role == 'admin':
-                    return redirect(url_for('analytics.naac_dashboard'))
-                return redirect(url_for('public.index'))
+                return jsonify({'error': 'Unauthorized access'}), 403
             return f(*args, **kwargs)
         return wrapped
     return decorator
 
-@admin_bp.route('/admin/users')
+@admin_bp.route('/users')
 @role_required('admin')
 def users_dashboard():
-    users = User.query.order_by(User.created_at.desc()).all()
-    return render_template('admin_users.html', users=users)
+    users = User.query.filter_by(is_deleted=False).order_by(User.created_at.desc()).all()
+    users_data = [{
+        'id': u.id,
+        'email': u.email,
+        'role': u.role,
+        'position': u.position,
+        'full_name': u.full_name,
+        'department': u.department,
+        'institution_id': u.institution_id,
+        'is_active': u.is_active,
+        'created_at': u.created_at.isoformat() if u.created_at else None
+    } for u in users]
+    return jsonify(users_data)
 
-@admin_bp.route('/admin/users/create', methods=['POST'])
+@admin_bp.route('/users/create', methods=['POST'])
 @role_required('admin')
 def create_user():
-    email = request.form.get('email')
-    password = request.form.get('password')
-    role = request.form.get('role')
-    position = request.form.get('position')
-    full_name = request.form.get('full_name')
-    department = request.form.get('department')
-    institution_id = request.form.get('institution_id')
+    data = request.get_json()
+    email = data.get('email')
+    password = data.get('password')
+    role = data.get('role')
+    position = data.get('position')
+    full_name = data.get('full_name')
+    department = data.get('department')
+    institution_id = data.get('institution_id')
     
     if not full_name:
-         flash('Full Name is required.')
-         return redirect(url_for('admin.users_dashboard'))
+         return jsonify({'error': 'Full Name is required.'}), 400
          
     if role == 'faculty':
         if not department or not institution_id:
-            flash('Faculty must have Department and Institution ID (Employee ID).')
-            return redirect(url_for('admin.users_dashboard'))
+            return jsonify({'error': 'Faculty must have Department and Institution ID.'}), 400
             
     if role == 'student':
         if not department:
-            flash('Students must have a Department.')
-            return redirect(url_for('admin.users_dashboard'))
+            return jsonify({'error': 'Students must have a Department.'}), 400
         if not institution_id:
-            flash('Students must have an Institution ID (Roll Number).')
-            return redirect(url_for('admin.users_dashboard'))
+             return jsonify({'error': 'Students must have an Institution ID.'}), 400
     
     if User.query.filter_by(email=email).first():
-        flash('Email already registered.')
-        return redirect(url_for('admin.users_dashboard'))
+        return jsonify({'error': 'Email already registered.'}), 400
     
     if institution_id and User.query.filter_by(institution_id=institution_id).first():
-        flash('Institution ID (ID/RollNo) must be unique.')
-        return redirect(url_for('admin.users_dashboard'))
+        return jsonify({'error': 'Institution ID must be unique.'}), 400
         
     new_user = User(
         email=email,
@@ -80,150 +78,225 @@ def create_user():
     )
     db.session.add(new_user)
     db.session.commit()
-    flash(f'User {email} created successfully.')
     
-    return redirect(url_for('admin.users_dashboard'))
+    return jsonify({'success': True, 'message': f'User {email} created successfully.'})
 
-@admin_bp.route('/admin/users/<int:user_id>/edit', methods=['GET', 'POST'])
+@admin_bp.route('/users/<int:user_id>/edit', methods=['GET', 'POST'])
 @role_required('admin')
 def edit_user(user_id):
     user = User.query.get_or_404(user_id)
     
-    if request.method == 'POST':
-        full_name = request.form.get('full_name')
-        email = request.form.get('email')
-        role = request.form.get('role')
-        position = request.form.get('position')
-        department = request.form.get('department')
-        institution_id = request.form.get('institution_id')
-        password = request.form.get('password')
-        is_active = request.form.get('is_active') == 'on'
-        
-        if not full_name:
-            flash('Full Name is required.')
-            return render_template('admin_user_edit.html', user=user)
+    if request.method == 'GET':
+        return jsonify({
+            'id': user.id,
+            'email': user.email,
+            'role': user.role,
+            'position': user.position,
+            'full_name': user.full_name,
+            'department': user.department,
+            'institution_id': user.institution_id,
+            'is_active': user.is_active
+        })
+    
+    data = request.get_json()
+    full_name = data.get('full_name')
+    email = data.get('email')
+    role = data.get('role')
+    position = data.get('position')
+    department = data.get('department')
+    institution_id = data.get('institution_id')
+    password = data.get('password')
+    is_active = data.get('is_active')
+    
+    if not full_name:
+        return jsonify({'error': 'Full Name is required.'}), 400
 
-        if role in ['faculty', 'student']:
-            if not department or not institution_id:
-                 flash(f'{role.capitalize()} requires Department and Institution ID.')
-                 return render_template('admin_user_edit.html', user=user)
+    existing_email = User.query.filter(User.email == email, User.id != user_id).first()
+    if existing_email:
+        return jsonify({'error': 'Email already in use.'}), 400
         
-        existing_email = User.query.filter(User.email == email, User.id != user_id).first()
-        if existing_email:
-            flash('Email already in use.')
-            return render_template('admin_user_edit.html', user=user)
-            
-        if institution_id:
-            existing_id = User.query.filter(User.institution_id == institution_id, User.id != user_id).first()
-            if existing_id:
-                flash('Institution ID already in use.')
-                return render_template('admin_user_edit.html', user=user)
-        
-        if user.role == 'admin' and user.email == 'admin@example.com':
-             if not is_active:
-                 flash("Cannot deactivate default admin.")
-                 is_active = True
-             if role != 'admin':
-                 flash("Cannot change role of default admin.")
-                 role = 'admin'
+    if institution_id:
+        existing_id = User.query.filter(User.institution_id == institution_id, User.id != user_id).first()
+        if existing_id:
+            return jsonify({'error': 'Institution ID already in use.'}), 400
+    
+    if user.role == 'admin' and user.email == 'admin@example.com':
+            if is_active is False:
+                return jsonify({'error': "Cannot deactivate default admin."}), 400
+            if role != 'admin':
+                return jsonify({'error': "Cannot change role of default admin."}), 400
 
-        user.full_name = full_name
-        user.email = email
-        user.role = role
-        user.position = position
-        user.department = department
-        user.institution_id = institution_id
+    user.full_name = full_name
+    user.email = email
+    user.role = role
+    user.position = position
+    user.department = department
+    user.institution_id = institution_id
+    if is_active is not None:
         user.is_active = is_active
-        
-        if password:
-             user.password_hash = generate_password_hash(password)
-        
-        db.session.commit()
-        flash('User updated successfully.')
-        return redirect(url_for('admin.users_dashboard'))
-
-    return render_template('admin_user_edit.html', user=user)
+    
+    if password:
+            user.password_hash = generate_password_hash(password)
+    
+    db.session.commit()
+    return jsonify({'success': True, 'message': 'User updated successfully.'})
 
 
-@admin_bp.route('/admin/users/toggle/<int:user_id>', methods=['POST'])
+@admin_bp.route('/users/toggle/<int:user_id>', methods=['POST'])
 @role_required('admin')
 def toggle_user(user_id):
     user = User.query.get_or_404(user_id)
     if user.role == 'admin' and user.email == 'admin@example.com':
-        flash("Cannot deactivate default admin.")
+        return jsonify({'error': 'Cannot deactivate default admin'}), 400
     else:
         user.is_active = not user.is_active
         db.session.commit()
         status = "Activated" if user.is_active else "Deactivated"
-        flash(f"User {user.email} {status}.")
-    return redirect(url_for('admin.users_dashboard'))
+        return jsonify({'success': True, 'message': f"User {user.email} {status}."})
 
-@admin_bp.route("/admin/users/<int:user_id>/delete", methods=["POST"])
+@admin_bp.route("/users/<int:user_id>/delete", methods=["POST"])
 @role_required('admin')
 def delete_user(user_id):
     user = User.query.get_or_404(user_id)
+    data = request.get_json() or {}
+    reason = data.get('reason', 'No reason provided')
     
     if user.id == current_user.id:
-        flash("Cannot delete your own admin account.")
-        return redirect(url_for('admin.users_dashboard'))
+        return jsonify({'error': 'Cannot delete your own admin account.'}), 400
         
     if user.role == 'admin' and user.email == 'admin@example.com':
-        flash("Cannot delete default admin.")
-    else:
-        db.session.delete(user)
-        db.session.commit()
-        flash(f"User {user.email} deleted.")
-    return redirect(url_for('admin.users_dashboard'))
+        return jsonify({'error': 'Cannot delete default admin.'}), 400
+    
+    # Create notification before marking as deleted/inactive
+    notif = Notification(
+        user_id=user.id,
+        title="Account Deleted",
+        message=f"Your account has been deleted by an administrator. Reason: {reason}",
+        type='warning'
+    )
+    db.session.add(notif)
+    
+    user.is_deleted = True
+    user.is_active = False
+    user.deletion_reason = reason
+    db.session.commit()
+    
+    return jsonify({'success': True, 'message': f"User {user.email} soft-deleted."})
 
 # --- Activity Types ---
-@admin_bp.route('/admin/activity-types', methods=['GET', 'POST'])
+@admin_bp.route('/activity-types', methods=['GET', 'POST'])
 @role_required('admin')
 def activity_types():
-    if request.method == 'POST':
-        name = request.form.get('name')
-        faculty_id = request.form.get('faculty_id')
-        description = request.form.get('description')
-        
-        if ActivityType.query.filter_by(name=name).first():
-            flash('Activity Type already exists.')
-        else:
-            new_at = ActivityType(name=name, faculty_incharge_id=faculty_id, description=description)
-            db.session.add(new_at)
-            db.session.commit()
-            flash('Activity Type created.')
-        return redirect(url_for('admin.activity_types'))
-    
-    activity_types = ActivityType.query.all()
-    faculty_users = User.query.filter_by(role='faculty').all()
-    
-    return render_template('admin_activity_types.html', activity_types=activity_types, faculty_users=faculty_users)
+    if request.method == 'GET':
+        activity_types = ActivityType.query.all()
+        # Optionally return faculty list for dropdowns if needed, or separate endpoint
+        at_data = [{
+            'id': at.id,
+            'name': at.name,
+            'description': at.description,
+            'faculty_incharge_id': at.faculty_incharge_id,
+            'faculty_incharge_name': at.faculty_incharge.full_name if at.faculty_incharge else None
+        } for at in activity_types]
+        return jsonify(at_data)
 
-@admin_bp.route('/admin/activity-types/<int:at_id>/edit', methods=['GET', 'POST'])
+    data = request.get_json()
+    name = data.get('name')
+    faculty_id = data.get('faculty_id')
+    description = data.get('description')
+    
+    if ActivityType.query.filter_by(name=name).first():
+        return jsonify({'error': 'Activity Type already exists.'}), 400
+    else:
+        new_at = ActivityType(name=name, faculty_incharge_id=faculty_id, description=description)
+        db.session.add(new_at)
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Activity Type created.'})
+
+@admin_bp.route('/activity-types/<int:at_id>/edit', methods=['GET', 'POST'])
 @role_required('admin')
 def edit_activity_type(at_id):
     at = ActivityType.query.get_or_404(at_id)
     
-    if request.method == 'POST':
-        at.name = request.form.get('name')
-        at.faculty_incharge_id = request.form.get('faculty_id')
-        at.description = request.form.get('description')
+    if request.method == 'GET':
+        return jsonify({
+            'id': at.id,
+            'name': at.name,
+            'description': at.description,
+            'faculty_incharge_id': at.faculty_incharge_id
+        })
         
-        existing = ActivityType.query.filter(ActivityType.name == at.name, ActivityType.id != at.id).first()
-        if existing:
-            flash(f"Activity Type '{at.name}' already exists.")
-        else:
-            db.session.commit()
-            flash(f"Activity Type '{at.name}' updated.")
-            return redirect(url_for('admin.activity_types'))
-            
-    faculty_users = User.query.filter(User.role.in_(['faculty', 'admin'])).all()
-    return render_template('admin_activity_type_edit.html', activity_type=at, faculty_users=faculty_users)
+    data = request.get_json()
+    at.name = data.get('name')
+    at.faculty_incharge_id = data.get('faculty_id')
+    at.description = data.get('description')
+    
+    existing = ActivityType.query.filter(ActivityType.name == at.name, ActivityType.id != at.id).first()
+    if existing:
+        return jsonify({'error': f"Activity Type '{at.name}' already exists."}), 400
+    else:
+        db.session.commit()
+        return jsonify({'success': True, 'message': f"Activity Type '{at.name}' updated."})
 
-@admin_bp.route('/admin/activity-types/delete/<int:at_id>', methods=['POST'])
+@admin_bp.route('/activity-types/<int:at_id>/usage', methods=['GET'])
+@role_required('admin')
+def get_activity_type_usage(at_id):
+    at = ActivityType.query.get_or_404(at_id)
+    count = StudentActivity.query.filter_by(activity_type_id=at_id).count()
+    return jsonify({
+        'id': at.id,
+        'count': count,
+        'has_linked_activities': count > 0
+    })
+
+@admin_bp.route('/activity-types/delete/<int:at_id>', methods=['POST'])
 @role_required('admin')
 def delete_activity_type(at_id):
     at = ActivityType.query.get_or_404(at_id)
-    db.session.delete(at)
+    
+    # Preserve student certificates: Convert linked activities to 'Other' (Custom Category)
+    try:
+        linked_activities = StudentActivity.query.filter_by(activity_type_id=at.id).all()
+        count = 0
+        for act in linked_activities:
+            # Only migrate active (non-deleted) records
+            if not act.is_deleted:
+                act.activity_type_id = None
+                act.custom_category = at.name # Preserve original category name
+                # Optional: act.deletion_reason = f"Migrated from deleted type '{at.name}'"
+                count += 1
+        
+        db.session.delete(at)
+        db.session.commit()
+        return jsonify({'success': True, 'message': f"Activity Type deleted. {count} student records moved to '{at.name}' (Custom)."})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+@admin_bp.route('/student-activities/delete/<int:activity_id>', methods=['DELETE', 'POST'])
+@role_required('admin', 'faculty')
+def admin_delete_activity(activity_id):
+    activity = StudentActivity.query.get_or_404(activity_id)
+    data = request.get_json() or {}
+    reason = data.get('reason', 'No reason provided')
+
+    # Permission check for Faculty
+    if current_user.role == 'faculty':
+        is_incharge = activity.activity_type and activity.activity_type.faculty_incharge_id == current_user.id
+        if not is_incharge:
+             return jsonify({'error': 'Unauthorized: You are not the In-Charge for this activity category.'}), 403
+
+    # Create notification for student
+    notif = Notification(
+        user_id=activity.student_id,
+        title="Activity Deleted",
+        message=f"Your activity '{activity.title}' has been deleted by {current_user.full_name}. Reason: {reason}",
+        type='warning'
+    )
+    db.session.add(notif)
+
+    # Soft delete: don't actually remove file or record, just mark as deleted
+    activity.is_deleted = True
+    activity.deletion_reason = reason
     db.session.commit()
-    flash('Activity Type deleted.')
-    return redirect(url_for('admin.activity_types'))
+    
+    return jsonify({'success': True, 'message': 'Student activity deleted successfully (Soft Delete)'})

@@ -1,9 +1,11 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, make_response, jsonify, send_file
+from flask import Blueprint, request, jsonify, send_file
 from flask_login import login_required, current_user
 from app.services.analytics_service import AnalyticsService
+from app.utils.api_response import success_response, error_response
 from functools import wraps
 from datetime import datetime
-from app.models import db, User
+from app.models import db, User, StudentActivity
+from sqlalchemy import func
 
 analytics_bp = Blueprint('analytics', __name__)
 
@@ -20,68 +22,73 @@ def get_filters():
     }
 
 # --- Auth Helpers ---
+# Fix #10: Return JSON 403 instead of abort(403)
 def role_required(*roles):
     def decorator(f):
         @wraps(f)
         @login_required
         def wrapped(*args, **kwargs):
             if current_user.role not in roles:
-                return abort(403)
+                return error_response('Unauthorized access', 403)
             return f(*args, **kwargs)
         return wrapped
     return decorator
 
-@analytics_bp.route('/analytics/dashboard')
-@login_required
-def naac_dashboard():
-    # Only Admin and Faculty should access
-    if current_user.role not in ['admin', 'faculty']:
-        return abort(403)
-    
-    # Fetch distinct departments
-    departments = [r[0] for r in db.session.query(User.department).distinct().filter(User.department.isnot(None)).all()]
-    
-    return render_template('analytics_dashboard.html', departments=departments)
-
 # --- JSON API Endpoints ---
+# Fix #7: Routes now use simple paths (blueprint prefix /api/analytics handles the rest)
+# e.g., '/meta' becomes /api/analytics/meta
 
-@analytics_bp.route('/analytics/api/kpis')
+@analytics_bp.route('/meta')
+@login_required
+def get_dashboard_meta():
+    """Returns metadata for dropdowns (Departments, Academic Years)."""
+    # Fix #1: func and StudentActivity now imported at top
+    departments = [r[0] for r in db.session.query(User.department).distinct().filter(User.department.isnot(None), User.department != '').all()]
+    
+    years = [r[0] for r in db.session.query(func.extract('year', StudentActivity.start_date)).distinct().filter(StudentActivity.start_date.isnot(None)).all()]
+    years = sorted([int(y) for y in years], reverse=True)
+    
+    return success_response({
+        "departments": departments,
+        "years": years
+    })
+
+@analytics_bp.route('/kpis')
 @login_required
 def get_kpi_summary():
     filters = get_filters()
     data = AnalyticsService.get_institution_kpis(filters)
-    return jsonify(data)
+    return success_response(data)
 
-@analytics_bp.route('/analytics/api/distribution')
+@analytics_bp.route('/distribution')
 @login_required
 def get_event_distribution():
     filters = get_filters()
     data = AnalyticsService.get_event_distribution(filters)
-    print("EVENT DISTRIBUTION RESPONSE:", data)
-    return jsonify(data)
+    return success_response(data)
 
-@analytics_bp.route('/analytics/api/department-participation')
+@analytics_bp.route('/department-participation')
 @login_required
 def get_department_participation():
     filters = get_filters()
     data = AnalyticsService.get_department_participation(filters)
-    return jsonify(data)
+    return success_response(data)
 
-@analytics_bp.route('/analytics/api/yearly-trend')
+@analytics_bp.route('/yearly-trend')
 @login_required
 def get_yearly_trend():
     filters = get_filters()
     data = AnalyticsService.get_yearly_trend(filters)
-    return jsonify(data)
+    return success_response(data)
 
-@analytics_bp.route('/analytics/api/verification-summary')
+@analytics_bp.route('/verification-summary')
 @login_required
 def get_verification_summary():
     filters = get_filters()
     data = AnalyticsService.get_verification_summary(filters)
-    return jsonify(data)
+    return success_response(data)
 
-@analytics_bp.route('/analytics/api/student-list')
+@analytics_bp.route('/student-list')
 @login_required
 def get_student_list():
     filters = get_filters()
@@ -101,42 +108,64 @@ def get_student_list():
         search=search,
         status=status
     )
-    return jsonify(data)
+    return success_response(data)
 
-@analytics_bp.route('/analytics/api/insights')
+@analytics_bp.route('/insights')
 @login_required
 def get_admin_insights():
     filters = get_filters()
     data = AnalyticsService.get_admin_insights(filters)
-    return jsonify(data)
+    return success_response(data)
 
-@analytics_bp.route('/analytics/api/health')
+@analytics_bp.route('/health')
 @login_required
 def get_data_health():
     data = AnalyticsService.get_data_health_summary()
-    return jsonify(data)
+    return success_response(data)
 
-@analytics_bp.route('/analytics/api/comparison')
+@analytics_bp.route('/comparison')
 @login_required
 def get_comparison():
     filters = get_filters()
     data = AnalyticsService.get_comparative_stats(filters)
     if data is None:
-        return jsonify({"status": "disabled", "reason": "Select Academic Year"})
-    return jsonify(data)
+        return success_response({"status": "disabled", "reason": "Select Academic Year"})
+    return success_response(data)
 
-@analytics_bp.route('/analytics/test-students/<int:id>')
+@analytics_bp.route('/events-by-category')
+@login_required
+def get_events_by_category():
+    filters = get_filters()
+    category = request.args.get('category')
+    if not category:
+        return error_response("Category is required", 400)
+        
+    data = AnalyticsService.get_events_by_category(category, filters)
+    return success_response(data)
+
+@analytics_bp.route('/events-summary')
+@login_required
+def get_event_summary():
+    filters = get_filters()
+    data = AnalyticsService.get_event_summary_list(filters)
+    return success_response(data)
+
+@analytics_bp.route('/event/<path:event_id>/students')
+@login_required
+def get_event_students(event_id):
+    filters = get_filters()
+    data = AnalyticsService.get_students_for_event(event_id, filters)
+    return success_response(data)
+
+@analytics_bp.route('/test-students/<int:id>')
 def test_students(id):
-    return jsonify(AnalyticsService.get_test_student_list(id))
+    return success_response(AnalyticsService.get_test_student_list(id))
 
 # --- Export Endpoints ---
 
-@analytics_bp.route('/analytics/export-naac')
-@login_required
+@analytics_bp.route('/export-naac')
+@role_required('admin', 'faculty')
 def export_naac():
-    if current_user.role not in ['admin', 'faculty']:
-        return abort(403)
-        
     filters = get_filters()
     export_type = request.args.get('type', 'full')
     
@@ -151,13 +180,10 @@ def export_naac():
         download_name=filename
     )
 
-@analytics_bp.route('/analytics/export-students-table')
-@login_required
+@analytics_bp.route('/export-students-table')
+@role_required('admin', 'faculty')
 def export_students_table():
     """Export the currently filtered student table view."""
-    if current_user.role not in ['admin', 'faculty']:
-        return abort(403)
-    
     filters = get_filters()
     excel_file = AnalyticsService.generate_filtered_student_export(
         category_name=request.args.get('category_name'),
@@ -171,13 +197,10 @@ def export_students_table():
     return send_file(excel_file, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                      as_attachment=True, download_name=filename)
 
-@analytics_bp.route('/analytics/export-snapshot')
-@login_required
+@analytics_bp.route('/export-snapshot')
+@role_required('admin', 'faculty')
 def export_snapshot():
     """Lightweight KPI + Insights + Comparison export for meetings."""
-    if current_user.role not in ['admin', 'faculty']:
-        return abort(403)
-    
     filters = get_filters()
     excel_file = AnalyticsService.generate_snapshot_export(filters=filters)
     
@@ -185,16 +208,13 @@ def export_snapshot():
     return send_file(excel_file, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
                      as_attachment=True, download_name=filename)
 
-@analytics_bp.route('/analytics/export-event-instance')
-@login_required
+@analytics_bp.route('/export-event-instance')
+@role_required('admin', 'faculty')
 def export_event_instance():
     """Export students for a specific event identity (drilldown)."""
-    if current_user.role not in ['admin', 'faculty']:
-        return abort(403)
-    
     event_identity = request.args.get('identity')
     if not event_identity:
-        return jsonify({"error": "Missing 'identity' parameter"}), 400
+        return error_response("Missing 'identity' parameter", 400)
     
     filters = get_filters()
     excel_file = AnalyticsService.generate_event_instance_export(event_identity, filters=filters)

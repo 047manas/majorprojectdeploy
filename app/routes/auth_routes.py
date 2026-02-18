@@ -1,47 +1,74 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request
+from flask import Blueprint, request, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from werkzeug.security import check_password_hash
 from app.models import User
+from app.utils.api_response import success_response, error_response
 
 auth_bp = Blueprint('auth', __name__)
 
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
-    if current_user.is_authenticated:
-        if current_user.role == 'admin':
-            return redirect(url_for('admin.users_dashboard')) # Will need to update these endpoints too
-        elif current_user.role == 'faculty':
-            return redirect(url_for('faculty.dashboard'))
-        else:
-            return redirect(url_for('student.dashboard'))
+    # Browser GET request -> Redirect to Frontend
+    if request.method == 'GET':
+        from flask import redirect
+        if current_user.is_authenticated:
+             return redirect("http://localhost:5173/")
+        return redirect("http://localhost:5173/login")
     
-    if request.method == 'POST':
-        email = request.form.get('email')
-        password = request.form.get('password')
-        user = User.query.filter_by(email=email).first()
+    # API POST request
+    data = request.get_json()
+    if not data:
+        return error_response('Invalid request data', 400)
         
-        if user and check_password_hash(user.password_hash, password):
-            if not user.is_active:
-                flash('Account deactivated. Please contact administrator.')
-                return render_template('login.html')
-            
-            login_user(user)
-            flash('Logged in successfully.')
-            
-            if user.role == 'admin':
-                return redirect(url_for('admin.users_dashboard'))
-            elif user.role == 'faculty':
-                return redirect(url_for('faculty.dashboard'))
-            else:
-                return redirect(url_for('student.dashboard'))
-        else:
-            flash('Invalid email or password.')
+    email = data.get('email')
+    password = data.get('password')
     
-    return render_template('login.html')
+    user = User.query.filter_by(email=email).first()
+    
+    if user and check_password_hash(user.password_hash, password):
+        if not user.is_active:
+            return error_response('Account deactivated. Contact administrator.', 403)
+            
+        login_user(user)
+        
+        user_data = {
+            'id': user.id,
+            'email': user.email,
+            'role': user.role,
+            'full_name': user.full_name,
+            'department': user.department,
+            'institution_id': user.institution_id
+        }
+        
+        print(f"DEBUG: Login successful for user {user.email}")
+        return jsonify({
+            'success': True,
+            'message': 'Logged in successfully',
+            'user': user_data
+        })
+    else:
+        print("DEBUG: Login failed - Invalid credentials")
+        return error_response('Invalid email or password', 401)
 
-@auth_bp.route('/logout')
+@auth_bp.route('/logout', methods=['GET', 'POST'])
 @login_required
 def logout():
     logout_user()
-    flash('Logged out.')
-    return redirect(url_for('auth.login'))
+    if request.method == 'GET':
+        from flask import redirect
+        return redirect("http://localhost:5173/login")
+    return jsonify({'success': True, 'message': 'Logged out successfully'})
+
+# Fix #5 & #6: Return standardized response format matching what AuthContext expects
+@auth_bp.route('/me', methods=['GET'])
+@login_required
+def get_current_user():
+    print(f"DEBUG: /me accessed by {current_user}")
+    return success_response({
+        'id': current_user.id,
+        'full_name': current_user.full_name,
+        'email': current_user.email,
+        'role': current_user.role,
+        'department': current_user.department,
+        'institution_id': current_user.institution_id
+    })
