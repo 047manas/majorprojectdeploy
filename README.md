@@ -49,3 +49,10 @@ Access the app at `http://localhost:5000`.
 - `docs/`: Design and Architecture documentation.
 - `config.py`: Configuration settings.
 - `run.py`: Application entry point.
+
+## Maintenance Scripts
+Utility scripts are located in `scripts/maintenance/`. Run them as modules from the root directory:
+```bash
+python -m scripts.maintenance.check_admin
+python -m scripts.maintenance.cleanup_orphans
+```
