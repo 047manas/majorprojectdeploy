@@ -1,10 +1,21 @@
 from flask import Blueprint, jsonify
-from flask_login import current_user
+from flask_login import login_required, current_user
 from app.models import db, User, StudentActivity, ActivityType
-from app.utils.decorators import role_required
 from sqlalchemy import or_
+from functools import wraps
 
 tpo_bp = Blueprint('tpo', __name__)
+
+def role_required(*roles):
+    def decorator(f):
+        @wraps(f)
+        @login_required
+        def wrapped(*args, **kwargs):
+            if current_user.role not in roles:
+                return jsonify({'error': 'Unauthorized access'}), 403
+            return f(*args, **kwargs)
+        return wrapped
+    return decorator
 
 @tpo_bp.route('/student/<string:roll_number>', methods=['GET'])
 @role_required('admin')
