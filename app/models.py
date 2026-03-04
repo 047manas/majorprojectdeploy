@@ -61,6 +61,7 @@ class ActivityType(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
     description = db.Column(db.String(255), nullable=True)
+    default_campus_type = db.Column(db.String(20), nullable=True, default='off_campus')
     
     # Responsible Person instead of Dept String
     faculty_incharge_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
@@ -110,6 +111,11 @@ class StudentActivity(db.Model):
     is_deleted = db.Column(db.Boolean, default=False, index=True)
     deletion_reason = db.Column(db.Text, nullable=True)
     
+    # Campus Type & Attendance
+    campus_type = db.Column(db.String(20), nullable=True, default='off_campus')
+    is_attendance_uploaded = db.Column(db.Boolean, default=False)
+    attendance_uploaded_by = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
+    
     faculty_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     assigned_reviewer_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     faculty_comment = db.Column(db.Text, nullable=True)
@@ -123,6 +129,7 @@ class StudentActivity(db.Model):
     student = db.relationship('User', foreign_keys=[student_id], backref=db.backref('activities', lazy=True, cascade="all, delete-orphan"))
     activity_type = db.relationship('ActivityType', backref=db.backref('student_activities', lazy=True))
     faculty = db.relationship('User', foreign_keys=[faculty_id], backref=db.backref('reviewed_activities', lazy=True))
+    attendance_uploader = db.relationship('User', foreign_keys=[attendance_uploaded_by], backref=db.backref('attendance_uploads', lazy=True))
     prev_activity = db.relationship('StudentActivity', remote_side=[id], backref=db.backref('next_activity', uselist=False))
 
     def __repr__(self):

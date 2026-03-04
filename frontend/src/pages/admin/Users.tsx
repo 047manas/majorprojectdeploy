@@ -5,7 +5,7 @@ import { ColumnDef, SortingState } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import api from '@/services/api';
-import { Plus, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, Users as UsersIcon } from 'lucide-react';
 import UserModal from '@/components/dashboard/UserModal';
 import { useAuth } from '@/context/AuthContext';
 
@@ -91,10 +91,10 @@ const Users = () => {
                 accessorKey: 'role',
                 header: 'Role',
                 cell: ({ row }) => (
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold
-                        ${row.original.role === 'admin' ? 'bg-purple-100 text-purple-800' :
-                            row.original.role === 'faculty' ? 'bg-blue-100 text-blue-800' :
-                                'bg-green-100 text-green-800'}`}>
+                    <span className={`px-2.5 py-1 rounded-lg text-xs font-bold
+                        ${row.original.role === 'admin' ? 'bg-violet-100/80 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' :
+                            row.original.role === 'faculty' ? 'bg-sky-100/80 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' :
+                                'bg-emerald-100/80 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'}`}>
                         {row.original.role.toUpperCase()}
                     </span>
                 ),
@@ -107,7 +107,7 @@ const Users = () => {
                 accessorKey: 'is_active',
                 header: 'Status',
                 cell: ({ row }) => (
-                    <span className={row.original.is_active ? 'text-green-600 font-bold' : 'text-red-600 font-bold'}>
+                    <span className={`px-2.5 py-0.5 rounded-lg text-[0.65rem] font-bold ${row.original.is_active ? 'bg-emerald-100/80 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' : 'bg-rose-100/80 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400'}`}>
                         {row.original.is_active ? 'Active' : 'Inactive'}
                     </span>
                 )
@@ -153,11 +153,16 @@ const Users = () => {
     if (isError) return <div>Failed to load users.</div>;
 
     return (
-        <div className="pb-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <div className="pb-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 animate-fade-in">
             <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold tracking-tight">User Management</h1>
-                    <p className="text-muted-foreground">Manage system users, roles, and permissions.</p>
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-lg shadow-indigo-500/20">
+                        <UsersIcon className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">User Management</h1>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Manage system users, roles, and permissions.</p>
+                    </div>
                 </div>
                 <Button onClick={handleAdd}>
                     <Plus className="mr-2 h-4 w-4" /> Add User

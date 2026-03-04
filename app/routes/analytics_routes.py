@@ -18,7 +18,8 @@ def get_filters():
         "verified_only": request.args.get('verified_only') == 'true',
         "batch": request.args.get('batch', type=int),
         "start_date": request.args.get('start_date'),
-        "end_date": request.args.get('end_date')
+        "end_date": request.args.get('end_date'),
+        "campus_type": request.args.get('campus_type')
     }
 
 # --- Auth Helpers ---

@@ -365,6 +365,10 @@ class AnalyticsService:
         if filters.get('batch'):
              query = query.filter(User.batch_year == str(filters['batch']))
 
+        # 3.5 Campus Type
+        if filters.get('campus_type'):
+            query = query.filter(StudentActivity.campus_type == filters['campus_type'])
+
         # 4. Verified Only
         if filters.get('verified_only'):
              query = query.filter(or_(
@@ -959,6 +963,7 @@ class AnalyticsService:
                     "Category": item.activity_type.name if item.activity_type else (item.custom_category or 'Other'),
                     "Date": str(item.start_date or item.created_at.date()),
                     "Status": item.status,
+                    "Campus Type": "In Campus" if item.campus_type == "in_campus" else ("Off Campus" if item.campus_type == "off_campus" else "N/A"),
                     "Verification Mode": item.verification_mode or 'N/A',
                     "Certificate Hash": item.certificate_hash or 'N/A',
                     "Certificate Link": cert_link
@@ -1038,6 +1043,7 @@ class AnalyticsService:
                 "Category": item.activity_type.name if item.activity_type else (item.custom_category or 'Other'),
                 "Date": str(item.start_date or item.created_at.date()),
                 "Status": item.status,
+                "Campus Type": "In Campus" if item.campus_type == "in_campus" else ("Off Campus" if item.campus_type == "off_campus" else "N/A"),
                 "Verification Mode": item.verification_mode or 'N/A',
                 "Certificate Hash": item.certificate_hash or 'N/A',
                 "Certificate Link": cert_link

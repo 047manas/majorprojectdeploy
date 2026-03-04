@@ -69,6 +69,24 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters = {}, onFilterChange }) =
                         </Select>
                     </div>
 
+                    {/* Campus Type Selector */}
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-muted-foreground">Campus</label>
+                        <Select
+                            value={filters.campus_type || 'all'}
+                            onValueChange={(val) => handleChange('campus_type', val === 'all' ? undefined : val)}
+                        >
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="All Campuses" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Campuses</SelectItem>
+                                <SelectItem value="in_campus">In Campus</SelectItem>
+                                <SelectItem value="off_campus">Off Campus</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+
                     {/* Date Range Selectors */}
                     <div className="space-y-2">
                         <label className="text-sm font-medium text-muted-foreground">Start Date</label>
@@ -112,7 +130,8 @@ const FilterBar: React.FC<FilterBarProps> = ({ filters = {}, onFilterChange }) =
                                 department: undefined,
                                 verified_only: undefined,
                                 start_date: undefined,
-                                end_date: undefined
+                                end_date: undefined,
+                                campus_type: undefined
                             })}
                             className="text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700 w-full md:w-auto"
                         >

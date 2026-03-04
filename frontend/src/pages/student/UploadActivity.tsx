@@ -3,8 +3,9 @@ import api from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, UploadCloud } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Loader2, Upload, FileText } from 'lucide-react';
+import DragDropUpload from '@/components/ui/DragDropUpload';
 import { useAuth } from '@/context/AuthContext';
 
 interface ActivityType {
@@ -26,12 +27,11 @@ const UploadActivity = () => {
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [file, setFile] = useState<File | null>(null);
+    const [campusType, setCampusType] = useState('off_campus');
 
     useEffect(() => {
         const fetchTypes = async () => {
             try {
-                // Fetch types from student dashboard endpoint or admin endpoint
-                // Student dashboard '/' returns types_data
                 const response = await api.get('/student/');
                 if (response.data.activity_types) {
                     setTypes(response.data.activity_types);
@@ -55,6 +55,7 @@ const UploadActivity = () => {
         formData.append('issuer_name', issuer);
         formData.append('start_date', startDate);
         formData.append('end_date', endDate);
+        formData.append('campus_type', campusType);
         formData.append('file', file);
         if (user?.institution_id) formData.append('roll_number', user.institution_id);
 
@@ -64,11 +65,9 @@ const UploadActivity = () => {
             });
             if (response.data.success) {
                 alert("Upload Successful!");
-                // Reset form
                 setTitle('');
                 setFile(null);
                 setIssuer('');
-                // Redirect to portfolio?
                 window.location.href = '/student/portfolio';
             }
         } catch (error: any) {
@@ -79,18 +78,53 @@ const UploadActivity = () => {
     };
 
     return (
-        <div className="p-6 max-w-3xl mx-auto">
+        <div className="p-6 max-w-3xl mx-auto animate-fade-in">
             <Card>
                 <CardHeader>
-                    <CardTitle>Upload Activity Certificate</CardTitle>
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-lg shadow-indigo-500/20">
+                            <Upload className="h-5 w-5 text-white" />
+                        </div>
+                        <div>
+                            <CardTitle>Upload Activity Certificate</CardTitle>
+                            <CardDescription className="mt-0.5">Submit your certificate for verification</CardDescription>
+                        </div>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* Campus Type Selector */}
+                        <div className="flex items-center gap-6 p-4 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl border border-slate-200/60 dark:border-slate-700/40">
+                            <Label className="text-sm font-bold">Campus Type:</Label>
+                            <label className="inline-flex items-center cursor-pointer gap-2">
+                                <input
+                                    type="radio"
+                                    name="campus_type"
+                                    value="off_campus"
+                                    checked={campusType === 'off_campus'}
+                                    onChange={() => setCampusType('off_campus')}
+                                    className="accent-indigo-600"
+                                />
+                                <span className="text-sm font-medium">Off Campus</span>
+                            </label>
+                            <label className="inline-flex items-center cursor-pointer gap-2">
+                                <input
+                                    type="radio"
+                                    name="campus_type"
+                                    value="in_campus"
+                                    checked={campusType === 'in_campus'}
+                                    onChange={() => setCampusType('in_campus')}
+                                    className="accent-indigo-600"
+                                />
+                                <span className="text-sm font-medium">In Campus</span>
+                            </label>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <Label>Activity Type</Label>
+                                <Label className="font-semibold">Activity Type</Label>
                                 <select
-                                    className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:ring-offset-slate-950 dark:focus-visible:ring-slate-300"
+                                    className="flex h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm px-3.5 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:border-indigo-400 dark:focus-visible:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200"
                                     value={typeId}
                                     onChange={(e) => setTypeId(e.target.value)}
                                     required
@@ -105,46 +139,40 @@ const UploadActivity = () => {
 
                             {typeId === 'other' && (
                                 <div className="space-y-2">
-                                    <Label>Custom Category Name</Label>
+                                    <Label className="font-semibold">Custom Category Name</Label>
                                     <Input value={customCategory} onChange={e => setCustomCategory(e.target.value)} required />
                                 </div>
                             )}
 
                             <div className="space-y-2 col-span-2">
-                                <Label>Activity Title</Label>
+                                <Label className="font-semibold">Activity Title</Label>
                                 <Input placeholder="e.g. Winner in Hackathon" value={title} onChange={e => setTitle(e.target.value)} required />
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Issued By (Organization)</Label>
+                                <Label className="font-semibold">Issued By (Organization)</Label>
                                 <Input placeholder="e.g. Google, IEEE" value={issuer} onChange={e => setIssuer(e.target.value)} />
                             </div>
 
                             <div className="space-y-2">
-                                <Label>Start Date</Label>
+                                <Label className="font-semibold">Start Date</Label>
                                 <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <Label>Certificate File (PDF/Image)</Label>
-                            <div className="border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg p-6 flex flex-col items-center text-center cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors relative">
-                                <input
-                                    type="file"
-                                    className="absolute inset-0 opacity-0 cursor-pointer"
-                                    onChange={e => setFile(e.target.files?.[0] || null)}
-                                    accept=".pdf,.png,.jpg,.jpeg"
-                                    required
-                                />
-                                <UploadCloud className="h-10 w-10 text-slate-400 mb-2" />
-                                <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">
-                                    {file ? file.name : "Click to upload or drag and drop"}
-                                </span>
-                                <span className="text-xs text-slate-500 mt-1">PDF, PNG, JPG up to 5MB</span>
-                            </div>
+                            <Label className="font-semibold">Certificate File (PDF/Image)</Label>
+                            <DragDropUpload
+                                accept=".pdf,.png,.jpg,.jpeg"
+                                file={file}
+                                onFileChange={setFile}
+                                label="Click to upload or drag & drop certificate"
+                                hint="PDF, PNG, JPG up to 5MB"
+                                required
+                            />
                         </div>
 
-                        <Button type="submit" disabled={submitting} className="w-full">
+                        <Button type="submit" disabled={submitting} className="w-full h-11">
                             {submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                             Submit Activity
                         </Button>

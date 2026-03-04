@@ -3,7 +3,7 @@ import api from '@/services/api';
 import { DataTable } from '@/components/dashboard/DataTable';
 import { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
-import { Plus, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Loader2, Pencil, Trash2, FileText } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -20,6 +20,7 @@ interface ActivityType {
     id: number;
     name: string;
     description: string;
+    default_campus_type: string;
     faculty_incharge_id: number | null;
     faculty_incharge_name: string | null;
 }
@@ -48,7 +49,8 @@ const Activities = () => {
     const [formData, setFormData] = useState({
         name: '',
         description: '',
-        faculty_id: ''
+        faculty_id: '',
+        default_campus_type: 'off_campus'
     });
     const [submitting, setSubmitting] = useState(false);
 
@@ -90,7 +92,7 @@ const Activities = () => {
 
     const handleOpenCreate = () => {
         setEditingId(null);
-        setFormData({ name: '', description: '', faculty_id: '' });
+        setFormData({ name: '', description: '', faculty_id: '', default_campus_type: 'off_campus' });
         setIsModalOpen(true);
     };
 
@@ -99,7 +101,8 @@ const Activities = () => {
         setFormData({
             name: at.name,
             description: at.description,
-            faculty_id: at.faculty_incharge_id?.toString() || ''
+            faculty_id: at.faculty_incharge_id?.toString() || '',
+            default_campus_type: at.default_campus_type || 'off_campus'
         });
         setIsModalOpen(true);
     };
@@ -166,6 +169,18 @@ const Activities = () => {
                 size: 200,
             },
             {
+                accessorKey: 'default_campus_type',
+                header: 'Campus',
+                cell: ({ row }) => {
+                    const ct = row.getValue('default_campus_type') as string;
+                    if (ct === 'in_campus') {
+                        return <span className="px-2.5 py-0.5 rounded-lg text-[0.65rem] font-bold bg-indigo-100/80 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">In Campus</span>;
+                    }
+                    return <span className="px-2.5 py-0.5 rounded-lg text-[0.65rem] font-bold bg-slate-100/80 text-slate-600 dark:bg-slate-700/50 dark:text-slate-400">Off Campus</span>;
+                },
+                size: 120,
+            },
+            {
                 id: 'actions',
                 header: 'Actions',
                 cell: ({ row }) => (
@@ -216,11 +231,16 @@ const Activities = () => {
     const pageCount = Math.ceil(data.length / pagination.pageSize);
 
     return (
-        <div className="p-6 max-w-7xl mx-auto">
+        <div className="p-6 max-w-7xl mx-auto animate-fade-in">
             <div className="flex justify-between items-center mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Activity Types</h1>
-                    <p className="text-slate-500 dark:text-slate-400">Configure activity categories and faculty responsibilities.</p>
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-lg shadow-indigo-500/20">
+                        <FileText className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">Activity Types</h1>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Configure activity categories and faculty responsibilities.</p>
+                    </div>
                 </div>
 
                 <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
@@ -260,7 +280,7 @@ const Activities = () => {
                             <div className="space-y-2">
                                 <Label>Faculty In-Charge</Label>
                                 <select
-                                    className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-800 dark:bg-slate-950 dark:ring-offset-slate-950 dark:focus-visible:ring-slate-300"
+                                    className="flex h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm px-3.5 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:border-indigo-400 dark:focus-visible:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200"
                                     value={formData.faculty_id}
                                     onChange={e => setFormData({ ...formData, faculty_id: e.target.value })}
                                 >
@@ -269,6 +289,33 @@ const Activities = () => {
                                         <option key={f.id} value={f.id}>{f.full_name}</option>
                                     ))}
                                 </select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Campus Type</Label>
+                                <div className="flex items-center gap-6 p-3 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl border border-slate-200/60 dark:border-slate-700/40">
+                                    <label className="inline-flex items-center cursor-pointer gap-2">
+                                        <input
+                                            type="radio"
+                                            name="default_campus_type"
+                                            value="off_campus"
+                                            checked={formData.default_campus_type === 'off_campus'}
+                                            onChange={() => setFormData({ ...formData, default_campus_type: 'off_campus' })}
+                                            className="accent-indigo-600"
+                                        />
+                                        <span className="text-sm">Off Campus</span>
+                                    </label>
+                                    <label className="inline-flex items-center cursor-pointer gap-2">
+                                        <input
+                                            type="radio"
+                                            name="default_campus_type"
+                                            value="in_campus"
+                                            checked={formData.default_campus_type === 'in_campus'}
+                                            onChange={() => setFormData({ ...formData, default_campus_type: 'in_campus' })}
+                                            className="accent-indigo-600"
+                                        />
+                                        <span className="text-sm">In Campus</span>
+                                    </label>
+                                </div>
                             </div>
                             <DialogFooter>
                                 <Button type="submit" disabled={submitting}>

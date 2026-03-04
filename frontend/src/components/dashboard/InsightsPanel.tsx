@@ -21,13 +21,13 @@ const InsightsPanel: React.FC<InsightsPanelProps> = ({ filters }) => {
 
     if (isLoading) {
         return (
-            <Card className="col-span-full lg:col-span-1 border-l-4 border-l-slate-200">
+            <Card className="col-span-full lg:col-span-1">
                 <CardHeader className="pb-2">
-                    <div className="h-6 w-32 bg-slate-100 animate-pulse rounded" />
+                    <div className="h-6 w-32 bg-slate-100 dark:bg-slate-800 shimmer rounded-lg" />
                 </CardHeader>
                 <CardContent className="space-y-4 pt-2">
                     {[1, 2, 3].map(i => (
-                        <div key={i} className="h-16 bg-slate-50 animate-pulse rounded-lg" />
+                        <div key={i} className="h-16 bg-slate-50 dark:bg-slate-800 shimmer rounded-xl" />
                     ))}
                 </CardContent>
             </Card>
@@ -38,32 +38,34 @@ const InsightsPanel: React.FC<InsightsPanelProps> = ({ filters }) => {
 
     return (
         <>
-            <Card className="col-span-full lg:col-span-1 border-l-4 border-l-indigo-500 shadow-sm">
+            <Card className="col-span-full lg:col-span-1 border-l-4 border-l-indigo-500 dark:border-l-indigo-400">
                 <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2 text-lg">
-                        <Star className="h-5 w-5 text-indigo-500 fill-indigo-500" />
+                        <div className="p-1.5 rounded-lg bg-gradient-to-br from-indigo-500 to-violet-500">
+                            <Star className="h-4 w-4 text-white fill-white" />
+                        </div>
                         Strategic Insights
                     </CardTitle>
                     <CardDescription>Automated performance analysis</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4 pt-2">
+                <CardContent className="space-y-3 pt-2">
 
                     {/* Top Performance */}
                     <div
-                        className="flex items-center justify-between p-3 bg-emerald-50 dark:bg-emerald-900/10 rounded-lg border border-emerald-100 dark:border-emerald-900/30 cursor-pointer hover:bg-emerald-100/50 transition-all group scale-[0.99] hover:scale-100"
+                        className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-700/40 cursor-pointer hover:border-teal-400/50 hover:shadow-md hover:bg-teal-50/30 dark:hover:bg-teal-900/10 transition-all group"
                         onClick={() => setDeptModalOpen(true)}
                     >
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-emerald-100 dark:bg-emerald-800 rounded-full group-hover:bg-emerald-200 transition-colors">
-                                <TrendingUp className="h-4 w-4 text-emerald-700 dark:text-emerald-300" />
+                            <div className="p-2 bg-gradient-to-br from-teal-500 to-emerald-400 rounded-xl shadow-sm">
+                                <TrendingUp className="h-4 w-4 text-white" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-400">Top Department</p>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">Top Department</p>
                                 <p className="font-semibold text-sm text-slate-900 dark:text-slate-100">
                                     {data.top_dept} ({data.top_dept_val}%)
                                 </p>
                                 {data.top_dept_list?.length > 3 && (
-                                    <p className="text-[10px] text-emerald-600 mt-0.5 font-medium group-hover:underline flex items-center gap-1">
+                                    <p className="text-[10px] text-teal-600 dark:text-teal-400 mt-0.5 font-medium group-hover:underline flex items-center gap-1">
                                         <ListFilter size={10} /> Click to see names
                                     </p>
                                 )}
@@ -73,19 +75,19 @@ const InsightsPanel: React.FC<InsightsPanelProps> = ({ filters }) => {
 
                     {/* Most Popular */}
                     <div
-                        className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30 cursor-pointer hover:bg-blue-100/50 transition-all group scale-[0.99] hover:scale-100"
+                        className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-700/40 cursor-pointer hover:border-sky-400/50 hover:shadow-md hover:bg-sky-50/30 dark:hover:bg-sky-900/10 transition-all group"
                         onClick={() => setCatModalOpen(true)}
                     >
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-blue-100 dark:bg-blue-800 rounded-full group-hover:bg-blue-200 transition-colors">
-                                <Award className="h-4 w-4 text-blue-700 dark:text-blue-300" />
+                            <div className="p-2 bg-gradient-to-br from-sky-500 to-blue-400 rounded-xl shadow-sm">
+                                <Award className="h-4 w-4 text-white" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-blue-800 dark:text-blue-400">Top Category</p>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">Top Category</p>
                                 <p className="font-semibold text-sm text-slate-900 dark:text-slate-100">
                                     {data.top_category} ({data.top_category_events || 0} {data.top_category_events === 1 ? 'event' : 'events'})
                                 </p>
-                                <p className="text-[10px] text-blue-600 mt-0.5 font-medium">
+                                <p className="text-[10px] text-sky-600 dark:text-sky-400 mt-0.5 font-medium">
                                     {data.top_category_val} participants
                                 </p>
                             </div>
@@ -94,20 +96,20 @@ const InsightsPanel: React.FC<InsightsPanelProps> = ({ filters }) => {
 
                     {/* Verification Efficiency */}
                     <div
-                        className="flex items-center justify-between p-3 bg-violet-50 dark:bg-violet-900/10 rounded-lg border border-violet-100 dark:border-violet-900/30"
+                        className="flex items-center justify-between p-3.5 rounded-xl border border-slate-200/60 dark:border-slate-700/40"
                         title={data.integrity_impact > 0 ? `${data.integrity_impact} fake/invalid records removed (Integrity Impact)` : ''}
                     >
                         <div className="flex items-center gap-3">
-                            <div className="p-2 bg-violet-100 dark:bg-violet-800 rounded-full">
-                                <CheckCircle className="h-4 w-4 text-violet-700 dark:text-violet-300" />
+                            <div className="p-2 bg-gradient-to-br from-indigo-500 to-violet-500 rounded-xl shadow-sm">
+                                <CheckCircle className="h-4 w-4 text-white" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-violet-800 dark:text-violet-400">Verification Rate</p>
-                                <p className="font-semibold text-sm text-slate-800 dark:text-slate-200">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">Verification Rate</p>
+                                <p className="font-semibold text-sm text-slate-900 dark:text-slate-100">
                                     {data.verification_efficiency}% of total submissions
                                 </p>
                                 {data.integrity_impact > 0 && (
-                                    <p className="text-[10px] text-violet-600 mt-0.5 font-medium">
+                                    <p className="text-[10px] text-indigo-600 dark:text-indigo-400 mt-0.5 font-medium">
                                         Impact: {data.integrity_impact} fake items cleared
                                     </p>
                                 )}
@@ -115,12 +117,14 @@ const InsightsPanel: React.FC<InsightsPanelProps> = ({ filters }) => {
                         </div>
                     </div>
 
-                    {/* Alerts (Only if exists) */}
+                    {/* Alerts */}
                     {(data.risk_events?.length > 0 || data.low_engagement_depts?.length > 0) && (
-                        <div className="p-3 bg-amber-50 dark:bg-amber-900/10 rounded-lg border border-amber-100 dark:border-amber-900/30">
+                        <div className="p-3.5 bg-rose-50/50 dark:bg-rose-900/10 rounded-xl border border-rose-200/50 dark:border-rose-900/30">
                             <div className="flex items-center gap-2 mb-2">
-                                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                                <span className="text-xs font-bold text-amber-800 dark:text-amber-300 uppercase">Attention Needed</span>
+                                <div className="p-1.5 bg-gradient-to-br from-rose-500 to-pink-500 rounded-lg">
+                                    <AlertTriangle className="h-3.5 w-3.5 text-white" />
+                                </div>
+                                <span className="text-xs font-bold text-rose-800 dark:text-rose-300 uppercase tracking-wider">Attention Needed</span>
                             </div>
                             <ul className="text-xs ml-6 list-disc space-y-1 text-slate-700 dark:text-slate-300">
                                 {data.low_engagement_depts.slice(0, 2).map((d: string) => (
@@ -141,7 +145,9 @@ const InsightsPanel: React.FC<InsightsPanelProps> = ({ filters }) => {
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
-                            <TrendingUp className="h-5 w-5 text-emerald-600" />
+                            <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500 to-teal-400">
+                                <TrendingUp className="h-4 w-4 text-white" />
+                            </div>
                             Top Performing Branches
                         </DialogTitle>
                         <DialogDescription>
@@ -151,8 +157,8 @@ const InsightsPanel: React.FC<InsightsPanelProps> = ({ filters }) => {
                     <div className="mt-4 grid grid-cols-2 gap-2">
                         {(data.top_dept_list?.length > 0 ? data.top_dept_list : [data.top_dept]).map((dept: string) => (
                             dept !== 'N/A' && !dept.includes('Depts') && (
-                                <div key={dept} className="p-2 bg-slate-50 dark:bg-slate-800 rounded border border-slate-100 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                                <div key={dept} className="p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50 text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-gradient-to-r from-emerald-500 to-teal-400" />
                                     {dept}
                                 </div>
                             )
@@ -171,7 +177,9 @@ const InsightsPanel: React.FC<InsightsPanelProps> = ({ filters }) => {
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
-                            <Award className="h-5 w-5 text-blue-600" />
+                            <div className="p-1.5 rounded-lg bg-gradient-to-br from-sky-500 to-blue-400">
+                                <Award className="h-4 w-4 text-white" />
+                            </div>
                             Top Performing Categories
                         </DialogTitle>
                         <DialogDescription>
@@ -180,9 +188,9 @@ const InsightsPanel: React.FC<InsightsPanelProps> = ({ filters }) => {
                     </DialogHeader>
                     <div className="mt-4 space-y-2">
                         {data.top_category_list?.map((cat: string) => (
-                            <div key={cat} className="p-2.5 bg-slate-50 dark:bg-slate-800 rounded border border-slate-100 dark:border-slate-700 text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                            <div key={cat} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-700/50 text-sm font-medium text-slate-700 dark:text-slate-300 flex items-center justify-between">
                                 <span>{cat}</span>
-                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{data.top_category_val} events</span>
+                                <span className="text-xs bg-gradient-to-r from-sky-500 to-blue-400 text-white px-2.5 py-0.5 rounded-full font-semibold">{data.top_category_val} events</span>
                             </div>
                         ))}
                     </div>

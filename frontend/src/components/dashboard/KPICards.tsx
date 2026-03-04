@@ -1,47 +1,50 @@
 import React from 'react';
 import { Activity, Users, CheckCircle, AlertTriangle, GraduationCap } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Card, CardContent } from '@/components/ui/card';
 
 interface StatCardProps {
     title: string;
     value: any;
     icon: React.ElementType;
     color: string;
-    borderColor: string;
+    gradientFrom: string;
+    gradientTo: string;
     loading: boolean;
     onClick?: () => void;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, color, loading, onClick }) => (
-    <Card
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, color, gradientFrom, gradientTo, loading, onClick }) => (
+    <div
         className={cn(
-            "rounded-2xl shadow-lg border-0 bg-white dark:bg-slate-800 transition-all duration-300 relative overflow-hidden group",
-            onClick ? "cursor-pointer hover:scale-[1.02] hover:shadow-xl active:scale-95" : ""
+            "relative rounded-2xl border border-slate-200/60 dark:border-slate-700/40 bg-white/80 dark:bg-slate-900/60 backdrop-blur-sm overflow-hidden group transition-all duration-300",
+            onClick ? "cursor-pointer hover:shadow-xl hover:-translate-y-1 active:scale-[0.98]" : "hover:shadow-md"
         )}
         onClick={onClick}
     >
-        {/* Top Gradient Line */}
-        <div className={cn("absolute top-0 left-0 w-full h-1 bg-gradient-to-r", color.replace('text-', 'from-').replace('600', '500').replace('500', '400') + " to-transparent opacity-50")} />
+        {/* Top Gradient Accent */}
+        <div className={cn("absolute top-0 left-0 w-full h-1 bg-gradient-to-r", gradientFrom, gradientTo)} />
 
-        <CardContent className="p-6 flex items-start justify-between">
+        {/* Decorative gradient blob */}
+        <div className={cn("absolute -top-8 -right-8 w-24 h-24 rounded-full opacity-[0.07] dark:opacity-[0.05] bg-gradient-to-br group-hover:opacity-[0.12] transition-opacity duration-500", gradientFrom, gradientTo)} />
+
+        <div className="p-6 flex items-start justify-between relative z-10">
             <div className="space-y-4">
-                <div className={cn("p-3 rounded-xl w-fit bg-opacity-10 dark:bg-opacity-20", color.replace('text-', 'bg-'))}>
-                    <Icon className={cn("w-6 h-6", color)} />
+                <div className={cn("p-3 rounded-xl w-fit bg-gradient-to-br shadow-sm", gradientFrom, gradientTo)}>
+                    <Icon className="w-5 h-5 text-white" />
                 </div>
                 <div>
                     {loading ? (
-                        <div className="h-9 w-24 bg-slate-100 dark:bg-slate-700 animate-pulse rounded-md"></div>
+                        <div className="h-9 w-24 bg-slate-100 dark:bg-slate-800 shimmer rounded-lg"></div>
                     ) : (
-                        <h3 className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
+                        <h3 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white">
                             {value !== undefined ? value : "-"}
                         </h3>
                     )}
                     <p className="text-sm font-medium text-slate-500 dark:text-slate-400 mt-1">{title}</p>
                 </div>
             </div>
-        </CardContent>
-    </Card>
+        </div>
+    </div>
 );
 
 interface KPIProps {
@@ -52,13 +55,14 @@ interface KPIProps {
 
 const KPICards: React.FC<KPIProps> = ({ data, loading, onCardClick }) => {
     return (
-        <div className="grid gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+        <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <StatCard
                 title="Total Students"
                 value={data?.total_students}
                 icon={GraduationCap}
-                color="text-blue-600"
-                borderColor="border-blue-600"
+                color="text-sky-600"
+                gradientFrom="from-sky-500"
+                gradientTo="to-cyan-400"
                 loading={loading}
                 onClick={() => onCardClick?.('TOTAL_STUDENTS')}
             />
@@ -67,24 +71,27 @@ const KPICards: React.FC<KPIProps> = ({ data, loading, onCardClick }) => {
                 value={data?.total_events}
                 icon={Activity}
                 color="text-indigo-600"
-                borderColor="border-indigo-600"
+                gradientFrom="from-indigo-500"
+                gradientTo="to-violet-500"
                 loading={loading}
                 onClick={() => onCardClick?.('TOTAL_EVENTS')}
             />
             <StatCard
-                title="Total Participations" // Or "Active Students" if changed
+                title="Total Participations"
                 value={data?.total_participations}
                 icon={Users}
-                color="text-emerald-500" // Emerald 500 as Accent
-                borderColor="border-emerald-500"
+                color="text-teal-600"
+                gradientFrom="from-teal-500"
+                gradientTo="to-emerald-400"
                 loading={loading}
             />
             <StatCard
                 title="Verified Certificates"
                 value={data?.verified_count}
                 icon={CheckCircle}
-                color="text-teal-600"
-                borderColor="border-teal-600"
+                color="text-emerald-600"
+                gradientFrom="from-emerald-500"
+                gradientTo="to-green-400"
                 loading={loading}
                 onClick={() => onCardClick?.('VERIFIED')}
             />
@@ -92,8 +99,9 @@ const KPICards: React.FC<KPIProps> = ({ data, loading, onCardClick }) => {
                 title="Pending Verification"
                 value={data?.pending_count}
                 icon={AlertTriangle}
-                color="text-amber-500"
-                borderColor="border-amber-500"
+                color="text-rose-500"
+                gradientFrom="from-rose-500"
+                gradientTo="to-pink-400"
                 loading={loading}
                 onClick={() => onCardClick?.('PENDING')}
             />

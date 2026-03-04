@@ -42,6 +42,7 @@ def dashboard():
         'id': a.id,
         'title': a.title,
         'status': a.status,
+        'campus_type': a.campus_type or 'off_campus',
         'created_at': a.created_at.isoformat(),
         'certificate_file': a.certificate_file
     } for a in activities]
@@ -75,6 +76,9 @@ def upload_activity():
     issuer = request.form.get('issuer_name')
     start_date_str = request.form.get('start_date')
     end_date_str = request.form.get('end_date')
+    campus_type = request.form.get('campus_type', 'off_campus')
+    if campus_type not in ('in_campus', 'off_campus'):
+        campus_type = 'off_campus'
 
     # Basic Form Validation
     if not activity_type_id:
@@ -179,7 +183,8 @@ def upload_activity():
             assigned_reviewer_id=assigned_reviewer_id,
             verification_token=secrets.token_urlsafe(16) if status == 'auto_verified' else None,
             verification_mode=verification.get('verification_mode', 'text_only'),
-            auto_details=verification.get('auto_details')
+            auto_details=verification.get('auto_details'),
+            campus_type=campus_type
         )
         db.session.add(new_activity)
         db.session.commit()
@@ -208,7 +213,9 @@ def portfolio():
         'issuer_name': a.issuer_name,
         'start_date': a.start_date.isoformat() if a.start_date else None,
         'status': a.status,
-        'certificate_url': f"/api/student/uploads/{a.certificate_file}",
+        'campus_type': a.campus_type or 'off_campus',
+        'is_attendance_uploaded': a.is_attendance_uploaded,
+        'certificate_url': f"/api/student/uploads/{a.certificate_file}" if a.certificate_file else None,
         'verification_token': a.verification_token,
         'verification_mode': a.verification_mode,
         'activity_type_name': a.activity_type.name if a.activity_type else (a.custom_category or 'Other')
@@ -273,6 +280,11 @@ def edit_activity(activity_id):
     activity.issuer_name = data.get('issuer_name', activity.issuer_name)
     activity.custom_category = data.get('custom_category', activity.custom_category)
     activity.organizer = data.get('organizer', activity.organizer)
+    
+    # Campus type
+    campus_type = data.get('campus_type')
+    if campus_type in ('in_campus', 'off_campus'):
+        activity.campus_type = campus_type
     
     # Handle dates
     if data.get('start_date'):
@@ -362,3 +374,92 @@ def mark_all_read():
     Notification.query.filter_by(user_id=current_user.id, is_read=False).update({Notification.is_read: True})
     db.session.commit()
     return jsonify({'success': True})
+
+@student_bp.route('/upload-for-attendance/<int:activity_id>', methods=['POST'])
+@login_required
+def upload_for_attendance(activity_id):
+    """Student uploads a certificate for an attendance-driven pending record."""
+    if current_user.role != 'student':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    activity = StudentActivity.query.get_or_404(activity_id)
+
+    # Security: Only the student who owns this record
+    if activity.student_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    # Only allow for pending_upload records
+    if activity.status != 'pending_upload':
+        return jsonify({'error': 'This activity is not awaiting certificate upload.'}), 400
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+
+    if file and allowed_file(file.filename):
+        if not validate_mime_type(file.stream):
+            return jsonify({'error': 'Invalid file type detected.'}), 400
+
+        original_filename = secure_filename(file.filename)
+        unique_filename = f"{uuid.uuid4().hex}_{original_filename}"
+
+        upload_folder = current_app.config['UPLOAD_FOLDER']
+        os.makedirs(upload_folder, exist_ok=True)
+
+        filepath = os.path.join(upload_folder, unique_filename)
+        file.save(filepath)
+
+        # Verification
+        verifier = VerificationService()
+        verification = verifier.verify(filepath)
+
+        status = 'pending'
+        auto_decision = verification['auto_decision']
+
+        file_hash = hashstore.calculate_file_hash(filepath)
+        approved_record = hashstore.lookup_hash(file_hash)
+
+        if approved_record:
+            status = 'auto_verified'
+            auto_decision = "Verified by previously stored hash (tamper-proof)."
+        elif verification['strong_auto']:
+            status = 'auto_verified'
+
+        # Update the activity record
+        activity.certificate_file = unique_filename
+        activity.certificate_hash = file_hash
+        activity.urls_json = json.dumps(verification['urls'])
+        activity.ids_json = json.dumps(verification['ids'])
+        activity.status = status
+        activity.auto_decision = auto_decision
+        activity.verification_mode = verification.get('verification_mode', 'text_only')
+        activity.auto_details = verification.get('auto_details')
+        if status == 'auto_verified':
+            activity.verification_token = secrets.token_urlsafe(16)
+
+        # Assign reviewer if pending
+        if status == 'pending':
+            if activity.activity_type and activity.activity_type.faculty_incharge_id:
+                activity.assigned_reviewer_id = activity.activity_type.faculty_incharge_id
+            else:
+                hod = User.query.filter_by(
+                    department=current_user.department,
+                    role='faculty',
+                    position='hod'
+                ).first()
+                if hod:
+                    activity.assigned_reviewer_id = hod.id
+
+        db.session.commit()
+
+        msg_status = "Verified!" if status == 'auto_verified' else 'Queued for Faculty.'
+        return jsonify({
+            'success': True,
+            'message': f"Certificate uploaded for '{activity.title}'. {msg_status}",
+            'activity': {'id': activity.id, 'status': status}
+        })
+    else:
+        return jsonify({'error': 'Invalid file type.'}), 400

@@ -3,7 +3,7 @@ import api from '@/services/api';
 import { DataTable } from '@/components/dashboard/DataTable';
 import { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
-import { Eye, CheckCircle, XCircle, FileText, User, Calendar, Tag, Loader2, ExternalLink } from 'lucide-react';
+import { Eye, CheckCircle, XCircle, FileText, User, Calendar, Tag, Loader2, ExternalLink, ClipboardCheck } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -138,15 +138,15 @@ const VerificationQueue = () => {
                 id: 'actions',
                 header: 'Actions',
                 cell: ({ row }) => (
-                    <div className="flex gap-2">
-                        <Button size="sm" variant="outline" className="border-indigo-200 text-indigo-600 hover:bg-indigo-50" onClick={() => handleReview(row.original)}>
-                            <Eye className="h-4 w-4 mr-1" /> Review
+                    <div className="flex gap-1.5">
+                        <Button size="sm" variant="outline" onClick={() => handleReview(row.original)}>
+                            <Eye className="h-3.5 w-3.5 mr-1" /> Review
                         </Button>
-                        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleAction(row.original.id, 'approve')}>
-                            <CheckCircle className="h-4 w-4" />
+                        <Button size="sm" className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white shadow-sm" onClick={() => handleAction(row.original.id, 'approve')}>
+                            <CheckCircle className="h-3.5 w-3.5" />
                         </Button>
                         <Button size="sm" variant="destructive" onClick={() => handleAction(row.original.id, 'reject')}>
-                            <XCircle className="h-4 w-4" />
+                            <XCircle className="h-3.5 w-3.5" />
                         </Button>
                     </div>
                 )
@@ -163,9 +163,16 @@ const VerificationQueue = () => {
     const pageCount = Math.ceil(data.length / pagination.pageSize);
 
     return (
-        <div className="p-6 max-w-7xl mx-auto">
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">Verification Queue</h1>
-            <p className="text-slate-500 dark:text-slate-400 mb-6">Review pending student activity submissions.</p>
+        <div className="p-6 max-w-7xl mx-auto animate-fade-in">
+            <div className="flex items-center gap-3 mb-6">
+                <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-lg shadow-indigo-500/20">
+                    <ClipboardCheck className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                    <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">Verification Queue</h1>
+                    <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">Review pending student activity submissions.</p>
+                </div>
+            </div>
 
             <DataTable
                 columns={columns}
@@ -200,7 +207,7 @@ const VerificationQueue = () => {
                         <div className="space-y-5 mt-2">
                             {/* Activity Info Grid */}
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                <div className="flex items-center gap-2 p-3 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl">
                                     <User className="h-4 w-4 text-slate-500 shrink-0" />
                                     <div>
                                         <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Student</p>
@@ -208,21 +215,21 @@ const VerificationQueue = () => {
                                         <p className="text-xs text-slate-500">{reviewData.student_roll} · {reviewData.student_department}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                <div className="flex items-center gap-2 p-3 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl">
                                     <Tag className="h-4 w-4 text-slate-500 shrink-0" />
                                     <div>
                                         <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Category</p>
                                         <p className="text-sm font-medium text-slate-900 dark:text-white">{reviewData.category}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                <div className="flex items-center gap-2 p-3 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl">
                                     <FileText className="h-4 w-4 text-slate-500 shrink-0" />
                                     <div>
                                         <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Activity</p>
                                         <p className="text-sm font-medium text-slate-900 dark:text-white">{reviewData.title}</p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg">
+                                <div className="flex items-center gap-2 p-3 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl">
                                     <Calendar className="h-4 w-4 text-slate-500 shrink-0" />
                                     <div>
                                         <p className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Date</p>
@@ -236,7 +243,7 @@ const VerificationQueue = () => {
 
                             {/* Issuer / Organizer */}
                             {(reviewData.issuer_name || reviewData.organizer) && (
-                                <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/30">
+                                <div className="p-3.5 bg-sky-50/80 dark:bg-sky-900/10 rounded-xl border border-sky-200/60 dark:border-sky-900/30">
                                     {reviewData.issuer_name && (
                                         <p className="text-sm text-slate-700 dark:text-slate-300"><span className="font-semibold">Issuer:</span> {reviewData.issuer_name}</p>
                                     )}
@@ -247,8 +254,8 @@ const VerificationQueue = () => {
                             )}
 
                             {/* Certificate Viewer */}
-                            <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
-                                <div className="flex items-center justify-between px-4 py-2 bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
+                            <div className="border border-slate-200/60 dark:border-slate-700/40 rounded-xl overflow-hidden">
+                                <div className="flex items-center justify-between px-4 py-2.5 bg-slate-50/80 dark:bg-slate-800/50 border-b border-slate-200/60 dark:border-slate-700/40">
                                     <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Certificate / Proof</span>
                                     {reviewData.certificate_url && (
                                         <a
@@ -292,14 +299,14 @@ const VerificationQueue = () => {
                                     value={comment}
                                     onChange={(e) => setComment(e.target.value)}
                                     placeholder="Add a note for the student..."
-                                    className="w-full px-3 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[80px] resize-none"
+                                    className="w-full px-3.5 py-2 border border-slate-200 dark:border-slate-700 rounded-xl text-sm bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/40 focus:border-indigo-400 min-h-[80px] resize-none transition-all duration-200"
                                 />
                             </div>
 
                             {/* Action Buttons */}
                             <div className="flex gap-3 pt-2">
                                 <Button
-                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                                    className="flex-1 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white shadow-lg shadow-emerald-500/20"
                                     onClick={() => handleAction(reviewData.id, 'approve')}
                                     disabled={actionLoading}
                                 >

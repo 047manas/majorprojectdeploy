@@ -8,6 +8,7 @@ export interface AnalyticsFilters {
     start_date?: string;
     end_date?: string;
     status?: string;
+    campus_type?: string;
 }
 
 // Params: Key for query caching

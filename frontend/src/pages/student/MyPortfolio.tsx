@@ -3,7 +3,7 @@ import api from '@/services/api';
 import { DataTable } from '@/components/dashboard/DataTable';
 import { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
-import { Download, ExternalLink, FileDown, Pencil, Trash2 } from 'lucide-react';
+import { Download, ExternalLink, FileDown, Pencil, Trash2, Loader2, UploadCloud, BookOpen } from 'lucide-react';
 import ActivityEditModal from '@/components/dashboard/ActivityEditModal';
 
 interface Activity {
@@ -13,7 +13,9 @@ interface Activity {
     start_date: string;
     end_date?: string;
     status: string;
-    certificate_url: string;
+    campus_type?: string;
+    is_attendance_uploaded?: boolean;
+    certificate_url: string | null;
     verification_token: string | null;
     verification_mode: string | null;
     activity_type_name: string;
@@ -38,9 +40,9 @@ const MyPortfolio = () => {
     });
     const [sorting, setSorting] = useState<SortingState>([]);
 
-    // Edit state
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [selectedActivity, setSelectedActivity] = useState<Activity | null>(null);
+    const [uploadingId, setUploadingId] = useState<number | null>(null);
 
     const fetchData = useCallback(async () => {
         setLoading(true);
@@ -103,6 +105,26 @@ const MyPortfolio = () => {
         }
     };
 
+    const handleUploadForAttendance = async (activityId: number, file: File) => {
+        setUploadingId(activityId);
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const response = await api.post(`/student/upload-for-attendance/${activityId}`, formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
+            });
+            if (response.data.success) {
+                alert(response.data.message);
+                fetchData();
+            }
+        } catch (error: any) {
+            alert(error.error || error.response?.data?.error || "Upload failed");
+        } finally {
+            setUploadingId(null);
+        }
+    };
+
     const columns = useMemo<ColumnDef<Activity>[]>(
         () => [
             {
@@ -114,7 +136,7 @@ const MyPortfolio = () => {
                 accessorKey: 'activity_type_name',
                 header: 'Activity Type',
                 cell: ({ row }) => (
-                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-300">
+                    <span className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100/80 text-slate-700 dark:bg-slate-700/50 dark:text-slate-300">
                         {row.getValue('activity_type_name') as string}
                     </span>
                 )
@@ -123,7 +145,7 @@ const MyPortfolio = () => {
                 accessorKey: 'title',
                 header: 'Title',
                 cell: ({ row }) => (
-                    <span className="font-semibold text-slate-900 dark:text-white">{row.getValue('title') as string}</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{row.getValue('title') as string}</span>
                 )
             },
             {
@@ -136,91 +158,132 @@ const MyPortfolio = () => {
                 cell: ({ row }) => {
                     const status = row.getValue('status') as string;
                     const mode = row.original.verification_mode;
-                    let color = 'text-yellow-600 bg-yellow-100 dark:text-yellow-400 dark:bg-yellow-900/30';
+                    let color = 'text-amber-700 bg-amber-100/80 dark:text-amber-400 dark:bg-amber-900/30';
                     let label = status.replace('_', ' ');
 
                     if (status === 'auto_verified') {
-                        color = 'text-green-600 bg-green-100 dark:text-green-400 dark:bg-green-900/30';
+                        color = 'text-emerald-700 bg-emerald-100/80 dark:text-emerald-400 dark:bg-emerald-900/30';
                         label = 'Auto Verified';
                     } else if (status === 'faculty_verified') {
-                        color = 'text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900/30';
+                        color = 'text-sky-700 bg-sky-100/80 dark:text-sky-400 dark:bg-sky-900/30';
                         label = 'Verified';
                     } else if (status === 'rejected') {
-                        color = 'text-red-600 bg-red-100 dark:text-red-400 dark:bg-red-900/30';
+                        color = 'text-rose-700 bg-rose-100/80 dark:text-rose-400 dark:bg-rose-900/30';
                         label = 'Rejected';
+                    } else if (status === 'pending_upload') {
+                        color = 'text-orange-700 bg-orange-100/80 dark:text-orange-400 dark:bg-orange-900/30';
+                        label = 'Upload Required';
                     }
 
                     const modeLabel = getVerificationModeLabel(mode);
 
                     return (
                         <div>
-                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${color} capitalize`}>
+                            <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${color} capitalize`}>
                                 {label}
                             </span>
                             {status.includes('verified') && modeLabel && (
-                                <div className="text-[0.7rem] text-slate-400 mt-1">{modeLabel}</div>
+                                <div className="text-[0.65rem] text-slate-400 mt-1 font-medium">{modeLabel}</div>
                             )}
                             {status === 'faculty_verified' && (
-                                <div className="text-[0.7rem] text-slate-400 mt-1">By Faculty</div>
+                                <div className="text-[0.65rem] text-slate-400 mt-1 font-medium">By Faculty</div>
                             )}
                         </div>
                     );
                 }
             },
             {
+                accessorKey: 'campus_type',
+                header: 'Campus',
+                cell: ({ row }) => {
+                    const ct = row.getValue('campus_type') as string;
+                    if (ct === 'in_campus') {
+                        return <span className="px-2.5 py-0.5 rounded-lg text-[0.65rem] font-bold bg-indigo-100/80 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400">In Campus</span>;
+                    }
+                    return <span className="px-2.5 py-0.5 rounded-lg text-[0.65rem] font-bold bg-slate-100/80 text-slate-600 dark:bg-slate-700/50 dark:text-slate-400">Off Campus</span>;
+                }
+            },
+            {
                 id: 'actions',
                 header: 'Actions',
                 cell: ({ row }) => (
-                    <div className="flex items-center gap-2">
-                        {/* View/Download Certificate */}
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => window.open(row.original.certificate_url, '_blank')}
-                            title="View Certificate"
-                        >
-                            <Download className="h-4 w-4 text-blue-600" />
-                        </Button>
+                    <div className="flex items-center gap-1.5">
+                        {row.original.status === 'pending_upload' ? (
+                            <label className="relative cursor-pointer">
+                                <input
+                                    type="file"
+                                    className="absolute inset-0 opacity-0 cursor-pointer w-full h-full"
+                                    accept=".pdf,.png,.jpg,.jpeg"
+                                    onChange={(e) => {
+                                        const f = e.target.files?.[0];
+                                        if (f) handleUploadForAttendance(row.original.id, f);
+                                    }}
+                                />
+                                <Button
+                                    size="sm"
+                                    className="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-white shadow-sm"
+                                    disabled={uploadingId === row.original.id}
+                                >
+                                    {uploadingId === row.original.id ? (
+                                        <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                                    ) : (
+                                        <UploadCloud className="h-3.5 w-3.5 mr-1" />
+                                    )}
+                                    Upload
+                                </Button>
+                            </label>
+                        ) : (
+                            <>
+                                {row.original.certificate_url && (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => window.open(row.original.certificate_url!, '_blank')}
+                                        title="View Certificate"
+                                        className="h-8 w-8 p-0"
+                                    >
+                                        <Download className="h-3.5 w-3.5 text-sky-600" />
+                                    </Button>
+                                )}
 
-                        {/* Public Verification Link */}
-                        {row.original.verification_token && (
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => window.open(`/verify/${row.original.verification_token}`, '_blank')}
-                                title="Public Verification Link"
-                                className="text-green-600 border-green-200 hover:bg-green-50"
-                            >
-                                <ExternalLink className="h-4 w-4" />
-                            </Button>
+                                {row.original.verification_token && (
+                                    <Button
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => window.open(`/verify/${row.original.verification_token}`, '_blank')}
+                                        title="Public Verification Link"
+                                        className="h-8 w-8 p-0 text-emerald-600 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                                    >
+                                        <ExternalLink className="h-3.5 w-3.5" />
+                                    </Button>
+                                )}
+
+                                <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleEdit(row.original)}
+                                    title="Edit Activity"
+                                    className="h-8 w-8 p-0"
+                                >
+                                    <Pencil className="h-3.5 w-3.5 text-slate-500" />
+                                </Button>
+                            </>
                         )}
 
-                        {/* Edit Button - Only for non-verified or allow all? User asked for edit feature. */}
-                        {/* Let's allow edit for all, but backend resets it. */}
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleEdit(row.original)}
-                            title="Edit Activity"
-                        >
-                            <Pencil className="h-4 w-4 text-slate-600" />
-                        </Button>
-
-                        {/* Delete Button */}
                         <Button
                             size="sm"
                             variant="outline"
                             onClick={() => handleDelete(row.original)}
                             title="Delete Activity"
-                            className="hover:bg-red-50 hover:text-red-600 border-slate-200"
+                            className="h-8 w-8 p-0 hover:bg-rose-50 dark:hover:bg-rose-900/20 hover:text-rose-600 hover:border-rose-200"
                         >
-                            <Trash2 className="h-4 w-4 text-red-500" />
+                            <Trash2 className="h-3.5 w-3.5 text-rose-400" />
                         </Button>
                     </div>
                 )
             }
         ],
-        [fetchData] // Added fetchData to dependencies for stable columns
+        [fetchData]
     );
 
     const paginatedData = useMemo(() => {
@@ -231,18 +294,23 @@ const MyPortfolio = () => {
     const pageCount = Math.ceil(data.length / pagination.pageSize);
 
     return (
-        <div className="p-6 max-w-7xl mx-auto">
+        <div className="p-6 max-w-7xl mx-auto animate-fade-in">
             <div className="flex items-center justify-between mb-6">
-                <div>
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-white">My Portfolio</h1>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">
-                        View all your recorded certificates and their verification status.
-                    </p>
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 shadow-lg shadow-indigo-500/20">
+                        <BookOpen className="h-5 w-5 text-white" />
+                    </div>
+                    <div>
+                        <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">My Portfolio</h1>
+                        <p className="text-slate-500 dark:text-slate-400 text-sm mt-0.5">
+                            View all your recorded certificates and their verification status.
+                        </p>
+                    </div>
                 </div>
                 <Button
                     onClick={handleDownloadPDF}
                     disabled={pdfLoading}
-                    className="bg-green-600 hover:bg-green-700 text-white"
+                    className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white shadow-lg shadow-emerald-500/20"
                 >
                     <FileDown className="h-4 w-4 mr-2" />
                     {pdfLoading ? 'Generating...' : 'Download Portfolio'}

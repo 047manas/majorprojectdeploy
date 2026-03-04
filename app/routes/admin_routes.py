@@ -185,15 +185,20 @@ def delete_user(user_id):
 
 # --- Activity Types ---
 @admin_bp.route('/activity-types', methods=['GET', 'POST'])
-@role_required('admin')
+@role_required('admin', 'faculty')
 def activity_types():
     if request.method == 'GET':
-        activity_types = ActivityType.query.all()
+        # Faculty only sees their assigned activity types; admin sees all
+        if current_user.role == 'faculty':
+            activity_types = ActivityType.query.filter_by(faculty_incharge_id=current_user.id).all()
+        else:
+            activity_types = ActivityType.query.all()
         # Optionally return faculty list for dropdowns if needed, or separate endpoint
         at_data = [{
             'id': at.id,
             'name': at.name,
             'description': at.description,
+            'default_campus_type': at.default_campus_type or 'off_campus',
             'faculty_incharge_id': at.faculty_incharge_id,
             'faculty_incharge_name': at.faculty_incharge.full_name if at.faculty_incharge else None
         } for at in activity_types]
@@ -203,11 +208,14 @@ def activity_types():
     name = data.get('name')
     faculty_id = data.get('faculty_id')
     description = data.get('description')
+    default_campus_type = data.get('default_campus_type', 'off_campus')
+    if default_campus_type not in ('in_campus', 'off_campus'):
+        default_campus_type = 'off_campus'
     
     if ActivityType.query.filter_by(name=name).first():
         return jsonify({'error': 'Activity Type already exists.'}), 400
     else:
-        new_at = ActivityType(name=name, faculty_incharge_id=faculty_id, description=description)
+        new_at = ActivityType(name=name, faculty_incharge_id=faculty_id, description=description, default_campus_type=default_campus_type)
         db.session.add(new_at)
         db.session.commit()
         return jsonify({'success': True, 'message': 'Activity Type created.'})
@@ -222,6 +230,7 @@ def edit_activity_type(at_id):
             'id': at.id,
             'name': at.name,
             'description': at.description,
+            'default_campus_type': at.default_campus_type or 'off_campus',
             'faculty_incharge_id': at.faculty_incharge_id
         })
         
@@ -229,6 +238,9 @@ def edit_activity_type(at_id):
     at.name = data.get('name')
     at.faculty_incharge_id = data.get('faculty_id')
     at.description = data.get('description')
+    default_campus_type = data.get('default_campus_type', at.default_campus_type)
+    if default_campus_type in ('in_campus', 'off_campus'):
+        at.default_campus_type = default_campus_type
     
     existing = ActivityType.query.filter(ActivityType.name == at.name, ActivityType.id != at.id).first()
     if existing:

@@ -1,9 +1,12 @@
-from flask import Blueprint, request, abort, jsonify
+from flask import Blueprint, request, abort, jsonify, current_app
 from flask_login import login_required, current_user
-from app.models import StudentActivity, ActivityType, db, User
+from app.models import StudentActivity, ActivityType, db, User, Notification
 from app.verification import hashstore
 import secrets
+import csv
+import io
 from functools import wraps
+from datetime import datetime
 
 faculty_bp = Blueprint('faculty', __name__)
 
@@ -152,3 +155,185 @@ def reject_request(act_id):
     
     db.session.commit()
     return jsonify({'success': True, 'message': f"Activity #{act_id} Rejected."})
+
+# --- Attendance Upload for In-Campus Events ---
+
+@faculty_bp.route('/upload-attendance', methods=['POST'])
+@role_required('faculty')
+def upload_attendance():
+    """
+    Faculty uploads attendance CSV for an in-campus event.
+    Creates pending_upload StudentActivity records and notifies students.
+    """
+    activity_type_id = request.form.get('activity_type_id')
+    title = request.form.get('title')
+    start_date_str = request.form.get('start_date')
+    end_date_str = request.form.get('end_date')
+    issuer_name = request.form.get('conducted_by') or request.form.get('issuer_name', '')
+
+    if not title:
+        return jsonify({'error': 'Event title is required.'}), 400
+    if not start_date_str:
+        return jsonify({'error': 'Start date is required.'}), 400
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'No CSV file uploaded.'}), 400
+
+    file = request.files['file']
+    if file.filename == '' or not file.filename.lower().endswith('.csv'):
+        return jsonify({'error': 'Please upload a valid CSV file.'}), 400
+
+    # Parse dates
+    try:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Invalid start date format.'}), 400
+    end_date = None
+    if end_date_str:
+        try:
+            end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+
+    # Resolve activity type
+    selected_activity_type = None
+    if activity_type_id and activity_type_id != 'other':
+        try:
+            selected_activity_type = ActivityType.query.get(int(activity_type_id))
+        except (ValueError, TypeError):
+            pass
+
+    # Parse CSV - look for institution_id / roll_number column
+    try:
+        content = file.stream.read().decode('utf-8-sig')
+        reader = csv.DictReader(io.StringIO(content))
+    except Exception as e:
+        return jsonify({'error': f'Failed to parse CSV: {str(e)}'}), 400
+
+    # Find the column containing roll numbers
+    if not reader.fieldnames:
+        return jsonify({'error': 'CSV file appears to be empty.'}), 400
+
+    roll_col = None
+    for col in reader.fieldnames:
+        col_lower = col.strip().lower().replace(' ', '_')
+        if col_lower in ('institution_id', 'roll_number', 'roll_no', 'rollno', 'roll', 'student_id', 'id'):
+            roll_col = col
+            break
+
+    if not roll_col:
+        return jsonify({'error': f'CSV must have a column named one of: institution_id, roll_number, roll_no, roll, student_id. Found: {", ".join(reader.fieldnames)}'}), 400
+
+    # Process each row
+    created = 0
+    not_found = []
+    already_exists = []
+
+    for row in reader:
+        roll = row.get(roll_col, '').strip()
+        if not roll:
+            continue
+
+        # Look up the student
+        student = User.query.filter_by(institution_id=roll, role='student').first()
+        if not student:
+            not_found.append(roll)
+            continue
+
+        # Check if an activity with the same title + start_date already exists for this student
+        existing = StudentActivity.query.filter_by(
+            student_id=student.id,
+            title=title,
+            start_date=start_date,
+            is_deleted=False
+        ).first()
+        if existing:
+            already_exists.append(roll)
+            continue
+
+        # Create the pending_upload record
+        new_activity = StudentActivity(
+            student_id=student.id,
+            activity_type_id=selected_activity_type.id if selected_activity_type else None,
+            title=title,
+            issuer_name=issuer_name,
+            start_date=start_date,
+            end_date=end_date,
+            certificate_file='',  # Empty - student fills this later
+            status='pending_upload',
+            campus_type='in_campus',
+            is_attendance_uploaded=True,
+            attendance_uploaded_by=current_user.id,
+        )
+        db.session.add(new_activity)
+
+        # Create notification for the student
+        notif = Notification(
+            user_id=student.id,
+            title='Certificate Upload Required',
+            message=f'You participated in "{title}" (In-Campus). Please upload your certificate to complete the verification.',
+            type='info'
+        )
+        db.session.add(notif)
+        created += 1
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': f'Attendance processed: {created} records created.',
+        'summary': {
+            'created': created,
+            'not_found': not_found,
+            'already_exists': already_exists
+        }
+    })
+
+@faculty_bp.route('/managed-events', methods=['GET'])
+@role_required('faculty', 'admin')
+def managed_events():
+    """Returns in-campus events managed by this faculty member."""
+    query = StudentActivity.query.filter_by(
+        campus_type='in_campus',
+        is_attendance_uploaded=True,
+        is_deleted=False
+    )
+
+    if current_user.role == 'faculty':
+        query = query.filter_by(attendance_uploaded_by=current_user.id)
+
+    # Group by title + start_date
+    from sqlalchemy import func
+    events = db.session.query(
+        StudentActivity.title,
+        StudentActivity.start_date,
+        func.count(StudentActivity.id).label('total_students'),
+        func.sum(
+            db.case(
+                (StudentActivity.status != 'pending_upload', 1),
+                else_=0
+            )
+        ).label('uploaded_count')
+    ).filter(
+        StudentActivity.campus_type == 'in_campus',
+        StudentActivity.is_attendance_uploaded == True,
+        StudentActivity.is_deleted == False
+    )
+
+    if current_user.role == 'faculty':
+        events = events.filter(StudentActivity.attendance_uploaded_by == current_user.id)
+
+    events = events.group_by(
+        StudentActivity.title,
+        StudentActivity.start_date
+    ).order_by(StudentActivity.start_date.desc()).all()
+
+    data = [{
+        'title': e.title,
+        'start_date': e.start_date.isoformat() if e.start_date else None,
+        'total_students': e.total_students,
+        'uploaded_count': e.uploaded_count,
+        'pending_count': e.total_students - e.uploaded_count
+    } for e in events]
+
+    return jsonify(data)

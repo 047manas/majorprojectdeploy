@@ -1,3 +1,4 @@
+import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
@@ -10,6 +11,7 @@ import Login from '@/pages/Login';
 import Users from '@/pages/admin/Users';
 import Activities from '@/pages/admin/Activities';
 import VerificationQueue from '@/pages/faculty/VerificationQueue';
+import AttendanceUpload from '@/pages/faculty/AttendanceUpload';
 import UploadActivity from '@/pages/student/UploadActivity';
 import MyPortfolio from '@/pages/student/MyPortfolio';
 import Notifications from '@/pages/student/Notifications';
@@ -33,6 +35,15 @@ const IndexRedirect = () => {
 };
 
 function App() {
+    // Apply persistent dark mode on initial load
+    React.useEffect(() => {
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    }, []);
+
     return (
         <AuthProvider>
             <Routes>
@@ -74,6 +85,7 @@ function App() {
                             </RoleGuard>
                         } />
                         <Route path="/faculty/queue" element={<RoleGuard allowedRoles={['faculty']}><VerificationQueue /></RoleGuard>} />
+                        <Route path="/faculty/attendance" element={<RoleGuard allowedRoles={['faculty']}><AttendanceUpload /></RoleGuard>} />
                         <Route path="/faculty/analytics" element={<RoleGuard allowedRoles={['faculty']}><AnalyticsDashboard /></RoleGuard>} />
 
                         {/* Student Routes */}
