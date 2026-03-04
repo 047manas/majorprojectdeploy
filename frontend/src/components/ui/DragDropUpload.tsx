@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { UploadCloud, FileText, X, CheckCircle } from 'lucide-react';
+import { UploadCloud, X, CheckCircle } from 'lucide-react';
 
 interface DragDropUploadProps {
     accept: string;
@@ -10,7 +10,7 @@ interface DragDropUploadProps {
     required?: boolean;
 }
 
-const DragDropUpload = ({ accept, file, onFileChange, label, hint, required }: DragDropUploadProps) => {
+const DragDropUpload = ({ accept, file, onFileChange, label, hint }: DragDropUploadProps) => {
     const [isDragging, setIsDragging] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
 

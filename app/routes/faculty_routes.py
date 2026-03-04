@@ -25,23 +25,25 @@ def role_required(*roles):
 @faculty_bp.route('/')
 @role_required('faculty', 'admin')
 def dashboard():
-    # Fetch from DB now
-    query = db.session.query(StudentActivity).outerjoin(ActivityType).filter(StudentActivity.status == 'pending')
+    query = db.session.query(StudentActivity).outerjoin(ActivityType)
     
     if current_user.role == 'faculty':
-        # Implement Access Control: HOD vs Regular Faculty
         if current_user.position == 'hod' and current_user.department:
-            # HOD: See activities from their department OR directly assigned to them
-            from sqlalchemy import or_
+            from sqlalchemy import or_, and_
             query = query.outerjoin(User, StudentActivity.student_id == User.id).filter(
                 or_(
-                    User.department == current_user.department,
-                    StudentActivity.assigned_reviewer_id == current_user.id
+                    and_(StudentActivity.status == 'pending', StudentActivity.assigned_reviewer_id == current_user.id),
+                    and_(StudentActivity.status == 'faculty_verified', User.department == current_user.department)
                 )
             )
         else:
-            # Regular Faculty: See only assigned activities
-            query = query.filter(StudentActivity.assigned_reviewer_id == current_user.id)
+            query = query.filter(
+                StudentActivity.status == 'pending', 
+                StudentActivity.assigned_reviewer_id == current_user.id
+            )
+    elif current_user.role == 'admin':
+        from sqlalchemy import or_
+        query = query.filter(or_(StudentActivity.status == 'pending', StudentActivity.status == 'faculty_verified'))
         
     pending_activities = query.order_by(StudentActivity.created_at.desc()).all()
     
@@ -57,6 +59,33 @@ def dashboard():
     } for a in pending_activities]
     
     return jsonify(activities_data)
+
+@faculty_bp.route('/pending-count')
+@role_required('faculty', 'admin')
+def get_pending_count():
+    query = db.session.query(StudentActivity)
+    
+    if current_user.role == 'faculty':
+        if current_user.position == 'hod' and current_user.department:
+            from sqlalchemy import or_, and_
+            query = query.outerjoin(User, StudentActivity.student_id == User.id).filter(
+                or_(
+                    and_(StudentActivity.status == 'pending', StudentActivity.assigned_reviewer_id == current_user.id),
+                    and_(StudentActivity.status == 'faculty_verified', User.department == current_user.department)
+                )
+            )
+        else:
+            query = query.filter(
+                StudentActivity.status == 'pending', 
+                StudentActivity.assigned_reviewer_id == current_user.id
+            )
+    elif current_user.role == 'admin':
+        from sqlalchemy import or_
+        query = query.filter(or_(StudentActivity.status == 'pending', StudentActivity.status == 'faculty_verified'))
+            
+    count = query.count()
+    return jsonify({'count': count})
+
 
 @faculty_bp.route('/review/<int:act_id>')
 @role_required('faculty', 'admin')
@@ -102,7 +131,7 @@ def review_request(act_id):
 def approve_request(act_id):
     activity = StudentActivity.query.get_or_404(act_id)
     
-    # Access Control
+    is_hod = False
     if current_user.role == 'faculty':
         is_hod = (current_user.position == 'hod' and activity.student.department == current_user.department)
         is_assigned = (activity.assigned_reviewer_id == current_user.id)
@@ -113,22 +142,27 @@ def approve_request(act_id):
     data = request.get_json()
     comment = data.get('faculty_comment', '')
     
-    activity.status = 'faculty_verified'
-    activity.faculty_id = current_user.id
-    activity.faculty_comment = comment
-    
-    # Generate Verification Token if not exists
-    if not activity.verification_token:
-        activity.verification_token = secrets.token_urlsafe(16)
-    
-    if activity.certificate_hash:
-         hashstore.store_approved_hash(
-            file_hash=activity.certificate_hash,
-            roll_no=activity.student.institution_id,
-            filename=activity.certificate_file,
-            request_id=activity.id,
-            faculty_comment=comment
-        )
+    if is_hod or current_user.role == 'admin':
+        activity.status = 'hod_approved'
+        activity.faculty_id = current_user.id
+        activity.faculty_comment = comment
+        
+        if not activity.verification_token:
+            activity.verification_token = secrets.token_urlsafe(16)
+        
+        if activity.certificate_hash:
+             hashstore.store_approved_hash(
+                file_hash=activity.certificate_hash,
+                roll_no=activity.student.institution_id,
+                filename=activity.certificate_file,
+                request_id=activity.id,
+                faculty_comment=comment
+            )
+    else:
+        # Regular Faculty
+        activity.status = 'faculty_verified'
+        activity.faculty_id = current_user.id
+        activity.faculty_comment = comment
 
     db.session.commit()
     return jsonify({'success': True, 'message': f"Activity #{act_id} Approved."})
@@ -335,5 +369,36 @@ def managed_events():
         'uploaded_count': e.uploaded_count,
         'pending_count': e.total_students - e.uploaded_count
     } for e in events]
+
+    return jsonify(data)
+
+@faculty_bp.route('/event/<path:title>/<start_date>', methods=['GET'])
+@role_required('faculty', 'admin')
+def get_event_students(title, start_date):
+    """Returns specific students and their upload status for a managed event."""
+    try:
+        parsed_date = datetime.strptime(start_date, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Invalid start date format.'}), 400
+
+    query = StudentActivity.query.filter_by(
+        title=title,
+        start_date=parsed_date,
+        campus_type='in_campus',
+        is_attendance_uploaded=True,
+        is_deleted=False
+    )
+
+    if current_user.role == 'faculty':
+        query = query.filter_by(attendance_uploaded_by=current_user.id)
+
+    activities = query.join(User, StudentActivity.student_id == User.id).order_by(User.institution_id).all()
+
+    data = [{
+        'activity_id': a.id,
+        'student_name': a.student.full_name,
+        'student_roll': a.student.institution_id,
+        'status': a.status,
+    } for a in activities]
 
     return jsonify(data)

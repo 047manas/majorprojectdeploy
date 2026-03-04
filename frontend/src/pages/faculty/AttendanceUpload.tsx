@@ -4,8 +4,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, UploadCloud, CheckCircle, AlertTriangle, Users, CalendarDays, Lock } from 'lucide-react';
+import { Loader2, UploadCloud, CheckCircle, AlertTriangle, Users, CalendarDays, Lock, Eye } from 'lucide-react';
 import DragDropUpload from '@/components/ui/DragDropUpload';
+import EventDetailsModal from './EventDetailsModal';
 
 interface ActivityType {
     id: number;
@@ -35,6 +36,10 @@ const AttendanceUpload = () => {
     const [summary, setSummary] = useState<UploadSummary | null>(null);
     const [events, setEvents] = useState<ManagedEvent[]>([]);
     const [eventsLoading, setEventsLoading] = useState(true);
+
+    // Modal state
+    const [selectedEvent, setSelectedEvent] = useState<ManagedEvent | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Form State
     const [selectedTypeId, setSelectedTypeId] = useState('');
@@ -340,9 +345,16 @@ const AttendanceUpload = () => {
                     ) : (
                         <div className="space-y-3">
                             {events.map((event, idx) => (
-                                <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+                                <div
+                                    key={idx}
+                                    onClick={() => { setSelectedEvent(event); setIsModalOpen(true); }}
+                                    className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 cursor-pointer hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors group"
+                                >
                                     <div>
-                                        <h4 className="font-semibold text-slate-900 dark:text-white">{event.title}</h4>
+                                        <h4 className="font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors flex items-center gap-2">
+                                            {event.title}
+                                            <Eye className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        </h4>
                                         <p className="text-xs text-slate-500 mt-0.5">
                                             {event.start_date ? new Date(event.start_date).toLocaleDateString() : 'No date'}
                                         </p>
@@ -369,6 +381,12 @@ const AttendanceUpload = () => {
                     )}
                 </CardContent>
             </Card>
+
+            <EventDetailsModal
+                isOpen={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                event={selectedEvent}
+            />
         </div>
     );
 };

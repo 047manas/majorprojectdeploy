@@ -2,7 +2,6 @@ import { useState } from 'react';
 import KPICards from '@/components/dashboard/KPICards';
 import { useKPIs, AnalyticsFilters } from '@/hooks/useAnalytics';
 import { useAuth } from '@/context/AuthContext';
-import { Button } from '@/components/ui/button';
 import { Users, FileCheck, Upload, BarChart2, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -67,8 +66,8 @@ const AdminDashboard = () => {
                     <button
                         key={action.label}
                         className={`relative h-28 rounded-2xl border border-slate-200/60 dark:border-slate-700/40 bg-white/80 dark:bg-slate-900/60 backdrop-blur-sm flex flex-col items-center justify-center gap-2.5 transition-all duration-300 group overflow-hidden ${action.disabled
-                                ? 'opacity-50 cursor-not-allowed'
-                                : 'hover:shadow-xl hover:-translate-y-1 active:scale-[0.98] cursor-pointer'
+                            ? 'opacity-50 cursor-not-allowed'
+                            : 'hover:shadow-xl hover:-translate-y-1 active:scale-[0.98] cursor-pointer'
                             }`}
                         onClick={() => !action.disabled && action.path && navigate(action.path)}
                         disabled={action.disabled}

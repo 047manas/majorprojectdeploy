@@ -21,6 +21,7 @@ interface ActivityType {
     name: string;
     description: string;
     default_campus_type: string;
+    weightage: number;
     faculty_incharge_id: number | null;
     faculty_incharge_name: string | null;
 }
@@ -50,7 +51,8 @@ const Activities = () => {
         name: '',
         description: '',
         faculty_id: '',
-        default_campus_type: 'off_campus'
+        default_campus_type: 'off_campus',
+        weightage: '10'
     });
     const [submitting, setSubmitting] = useState(false);
 
@@ -92,7 +94,7 @@ const Activities = () => {
 
     const handleOpenCreate = () => {
         setEditingId(null);
-        setFormData({ name: '', description: '', faculty_id: '', default_campus_type: 'off_campus' });
+        setFormData({ name: '', description: '', faculty_id: '', default_campus_type: 'off_campus', weightage: '10' });
         setIsModalOpen(true);
     };
 
@@ -102,7 +104,8 @@ const Activities = () => {
             name: at.name,
             description: at.description,
             faculty_id: at.faculty_incharge_id?.toString() || '',
-            default_campus_type: at.default_campus_type || 'off_campus'
+            default_campus_type: at.default_campus_type || 'off_campus',
+            weightage: at.weightage?.toString() || '10'
         });
         setIsModalOpen(true);
     };
@@ -179,6 +182,16 @@ const Activities = () => {
                     return <span className="px-2.5 py-0.5 rounded-lg text-[0.65rem] font-bold bg-slate-100/80 text-slate-600 dark:bg-slate-700/50 dark:text-slate-400">Off Campus</span>;
                 },
                 size: 120,
+            },
+            {
+                accessorKey: 'weightage',
+                header: 'Points',
+                cell: ({ row }) => (
+                    <span className="inline-flex items-center justify-center px-2.5 py-1 rounded-full text-xs font-black bg-emerald-100/80 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                        {(row.original as ActivityType).weightage} pts
+                    </span>
+                ),
+                size: 100,
             },
             {
                 id: 'actions',
@@ -316,6 +329,19 @@ const Activities = () => {
                                         <span className="text-sm">In Campus</span>
                                     </label>
                                 </div>
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="weightage">Activity Points (Weightage)</Label>
+                                <Input
+                                    id="weightage"
+                                    type="number"
+                                    min="1"
+                                    max="500"
+                                    value={formData.weightage}
+                                    onChange={e => setFormData({ ...formData, weightage: e.target.value })}
+                                    required
+                                />
+                                <p className="text-xs text-slate-500">Points awarded for this activity type (used in TPO dashboard)</p>
                             </div>
                             <DialogFooter>
                                 <Button type="submit" disabled={submitting}>

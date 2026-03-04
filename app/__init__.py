@@ -41,12 +41,14 @@ def create_app(config_class=Config):
     from app.routes.admin_routes import admin_bp
     from app.routes.analytics_routes import analytics_bp
     from app.routes.public_routes import public_bp
+    from app.routes.tpo_routes import tpo_bp
     
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(student_bp, url_prefix='/api/student')
     app.register_blueprint(faculty_bp, url_prefix='/api/faculty')
     app.register_blueprint(admin_bp, url_prefix='/api/admin')
     app.register_blueprint(analytics_bp, url_prefix='/api/analytics')
+    app.register_blueprint(tpo_bp, url_prefix='/api/tpo')
     app.register_blueprint(public_bp)
 
     # Fix #4: Exempt all API routes from CSRF (frontend sends JSON, not forms)
@@ -55,6 +57,7 @@ def create_app(config_class=Config):
     csrf.exempt(faculty_bp)
     csrf.exempt(admin_bp)
     csrf.exempt(analytics_bp)
+    csrf.exempt(tpo_bp)
 
     # Enable CORS for development
     from flask_cors import CORS

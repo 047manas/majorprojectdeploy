@@ -62,6 +62,7 @@ class ActivityType(db.Model):
     name = db.Column(db.String(100), nullable=False, unique=True)
     description = db.Column(db.String(255), nullable=True)
     default_campus_type = db.Column(db.String(20), nullable=True, default='off_campus')
+    weightage = db.Column(db.Integer, nullable=False, default=10)
     
     # Responsible Person instead of Dept String
     faculty_incharge_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)

@@ -6,14 +6,13 @@ interface StatCardProps {
     title: string;
     value: any;
     icon: React.ElementType;
-    color: string;
     gradientFrom: string;
     gradientTo: string;
     loading: boolean;
     onClick?: () => void;
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, color, gradientFrom, gradientTo, loading, onClick }) => (
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon: Icon, gradientFrom, gradientTo, loading, onClick }) => (
     <div
         className={cn(
             "relative rounded-2xl border border-slate-200/60 dark:border-slate-700/40 bg-white/80 dark:bg-slate-900/60 backdrop-blur-sm overflow-hidden group transition-all duration-300",
@@ -60,7 +59,6 @@ const KPICards: React.FC<KPIProps> = ({ data, loading, onCardClick }) => {
                 title="Total Students"
                 value={data?.total_students}
                 icon={GraduationCap}
-                color="text-sky-600"
                 gradientFrom="from-sky-500"
                 gradientTo="to-cyan-400"
                 loading={loading}
@@ -70,7 +68,6 @@ const KPICards: React.FC<KPIProps> = ({ data, loading, onCardClick }) => {
                 title="Total Events"
                 value={data?.total_events}
                 icon={Activity}
-                color="text-indigo-600"
                 gradientFrom="from-indigo-500"
                 gradientTo="to-violet-500"
                 loading={loading}
@@ -80,7 +77,6 @@ const KPICards: React.FC<KPIProps> = ({ data, loading, onCardClick }) => {
                 title="Total Participations"
                 value={data?.total_participations}
                 icon={Users}
-                color="text-teal-600"
                 gradientFrom="from-teal-500"
                 gradientTo="to-emerald-400"
                 loading={loading}
@@ -89,7 +85,6 @@ const KPICards: React.FC<KPIProps> = ({ data, loading, onCardClick }) => {
                 title="Verified Certificates"
                 value={data?.verified_count}
                 icon={CheckCircle}
-                color="text-emerald-600"
                 gradientFrom="from-emerald-500"
                 gradientTo="to-green-400"
                 loading={loading}
@@ -99,7 +94,6 @@ const KPICards: React.FC<KPIProps> = ({ data, loading, onCardClick }) => {
                 title="Pending Verification"
                 value={data?.pending_count}
                 icon={AlertTriangle}
-                color="text-rose-500"
                 gradientFrom="from-rose-500"
                 gradientTo="to-pink-400"
                 loading={loading}

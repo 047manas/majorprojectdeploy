@@ -16,6 +16,7 @@ import UploadActivity from '@/pages/student/UploadActivity';
 import MyPortfolio from '@/pages/student/MyPortfolio';
 import Notifications from '@/pages/student/Notifications';
 import VerifyPublic from '@/pages/VerifyPublic';
+import TpoDashboard from '@/pages/admin/TpoDashboard';
 
 // Redirect helper for root path
 const IndexRedirect = () => {
@@ -72,6 +73,7 @@ function App() {
                         <Route path="/admin/users" element={<RoleGuard allowedRoles={['admin']}><Users /></RoleGuard>} />
                         <Route path="/admin/analytics" element={<RoleGuard allowedRoles={['admin']}><AnalyticsDashboard /></RoleGuard>} />
                         <Route path="/admin/activities" element={<RoleGuard allowedRoles={['admin']}><Activities /></RoleGuard>} />
+                        <Route path="/admin/tpo" element={<RoleGuard allowedRoles={['admin']}><TpoDashboard /></RoleGuard>} />
 
                         {/* Faculty Routes */}
                         <Route path="/faculty" element={

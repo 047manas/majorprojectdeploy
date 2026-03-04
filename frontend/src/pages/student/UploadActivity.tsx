@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Loader2, Upload, FileText } from 'lucide-react';
+import { Loader2, Upload } from 'lucide-react';
 import DragDropUpload from '@/components/ui/DragDropUpload';
 import { useAuth } from '@/context/AuthContext';
 
@@ -16,7 +16,7 @@ interface ActivityType {
 const UploadActivity = () => {
     const { user } = useAuth();
     const [types, setTypes] = useState<ActivityType[]>([]);
-    const [loading, setLoading] = useState(false);
+
     const [submitting, setSubmitting] = useState(false);
 
     // Form State
@@ -154,9 +154,15 @@ const UploadActivity = () => {
                                 <Input placeholder="e.g. Google, IEEE" value={issuer} onChange={e => setIssuer(e.target.value)} />
                             </div>
 
-                            <div className="space-y-2">
-                                <Label className="font-semibold">Start Date</Label>
-                                <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label className="font-semibold">Start Date</Label>
+                                    <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} required />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label className="font-semibold">End Date (optional)</Label>
+                                    <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+                                </div>
                             </div>
                         </div>
 

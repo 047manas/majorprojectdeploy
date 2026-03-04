@@ -373,7 +373,8 @@ class AnalyticsService:
         if filters.get('verified_only'):
              query = query.filter(or_(
                 StudentActivity.status == 'faculty_verified',
-                StudentActivity.status == 'auto_verified'
+                StudentActivity.status == 'auto_verified',
+                StudentActivity.status == 'hod_approved'
             ))
             
         # 5. Date Range
@@ -485,7 +486,7 @@ class AnalyticsService:
         
         # 7. Verified & Pending Counts
         status_counts = base_q.with_entities(
-            func.sum(case((or_(StudentActivity.status == 'faculty_verified', StudentActivity.status == 'auto_verified'), 1), else_=0)).label('verified'),
+            func.sum(case((or_(StudentActivity.status == 'faculty_verified', StudentActivity.status == 'auto_verified', StudentActivity.status == 'hod_approved'), 1), else_=0)).label('verified'),
             func.sum(case((StudentActivity.status == 'pending', 1), else_=0)).label('pending')
         ).first()
 
@@ -614,7 +615,7 @@ class AnalyticsService:
         base_q = AnalyticsService._get_base_query(filters)
         
         query = base_q.with_entities(
-            func.sum(case((or_(StudentActivity.status == 'faculty_verified', StudentActivity.status == 'auto_verified'), 1), else_=0)),
+            func.sum(case((or_(StudentActivity.status == 'faculty_verified', StudentActivity.status == 'auto_verified', StudentActivity.status == 'hod_approved'), 1), else_=0)),
             func.sum(case((StudentActivity.status == 'pending', 1), else_=0)),
             func.sum(case((StudentActivity.status == 'rejected', 1), else_=0))
         )
@@ -753,7 +754,7 @@ class AnalyticsService:
             
             func.count(StudentActivity.id).label('participations'),
             func.count(distinct(StudentActivity.student_id)).label('unique_students'),
-             func.sum(case((or_(StudentActivity.status == 'faculty_verified', StudentActivity.status == 'auto_verified'), 1), else_=0)).label('verified_count'),
+             func.sum(case((or_(StudentActivity.status == 'faculty_verified', StudentActivity.status == 'auto_verified', StudentActivity.status == 'hod_approved'), 1), else_=0)).label('verified_count'),
              func.sum(case((StudentActivity.status == 'pending', 1), else_=0)).label('pending_count')
         ).group_by(
             identity_expr

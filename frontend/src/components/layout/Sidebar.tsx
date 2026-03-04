@@ -14,7 +14,8 @@ import {
     PanelLeftOpen,
     Bell,
     X,
-    Shield
+    Shield,
+    Award
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -40,9 +41,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleCollapse, isMobile
     const fetchPendingCount = useCallback(async () => {
         if (user?.role !== 'faculty') return;
         try {
-            const response = await api.get('/faculty/');
-            if (Array.isArray(response.data)) {
-                setPendingCount(response.data.length);
+            const response = await api.get('/faculty/pending-count');
+            if (response.data && typeof response.data.count === 'number') {
+                setPendingCount(response.data.count);
             }
         } catch {
             // Silently fail
@@ -78,6 +79,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleCollapse, isMobile
             case 'admin':
                 return [
                     { name: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
+                    { name: 'TPO View', icon: Award, path: '/admin/tpo' },
                     { name: 'Analytics', icon: BarChart2, path: '/admin/analytics' },
                     { name: 'Users', icon: Users, path: '/admin/users' },
                     { name: 'Activities', icon: FileText, path: '/admin/activities' },

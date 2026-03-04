@@ -231,7 +231,7 @@ def portfolio_pdf():
     query = StudentActivity.query.filter_by(student_id=current_user.id, is_deleted=False)
     
     if mode == 'verified':
-        query = query.filter(StudentActivity.status.in_(['auto_verified', 'faculty_verified']))
+        query = query.filter(StudentActivity.status.in_(['auto_verified', 'faculty_verified', 'hod_approved']))
         
     activities = query.order_by(StudentActivity.created_at.desc()).all()
     

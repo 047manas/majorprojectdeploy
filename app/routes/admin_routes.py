@@ -199,6 +199,7 @@ def activity_types():
             'name': at.name,
             'description': at.description,
             'default_campus_type': at.default_campus_type or 'off_campus',
+            'weightage': at.weightage,
             'faculty_incharge_id': at.faculty_incharge_id,
             'faculty_incharge_name': at.faculty_incharge.full_name if at.faculty_incharge else None
         } for at in activity_types]
@@ -215,7 +216,12 @@ def activity_types():
     if ActivityType.query.filter_by(name=name).first():
         return jsonify({'error': 'Activity Type already exists.'}), 400
     else:
-        new_at = ActivityType(name=name, faculty_incharge_id=faculty_id, description=description, default_campus_type=default_campus_type)
+        weightage = data.get('weightage', 10)
+        try:
+            weightage = int(weightage)
+        except (TypeError, ValueError):
+            weightage = 10
+        new_at = ActivityType(name=name, faculty_incharge_id=faculty_id, description=description, default_campus_type=default_campus_type, weightage=weightage)
         db.session.add(new_at)
         db.session.commit()
         return jsonify({'success': True, 'message': 'Activity Type created.'})
@@ -231,6 +237,7 @@ def edit_activity_type(at_id):
             'name': at.name,
             'description': at.description,
             'default_campus_type': at.default_campus_type or 'off_campus',
+            'weightage': at.weightage,
             'faculty_incharge_id': at.faculty_incharge_id
         })
         
@@ -246,9 +253,13 @@ def edit_activity_type(at_id):
     if existing:
         return jsonify({'error': f"Activity Type '{at.name}' already exists."}), 400
     else:
+        weightage = data.get('weightage', at.weightage)
+        try:
+            at.weightage = int(weightage)
+        except (TypeError, ValueError):
+            pass
         db.session.commit()
         return jsonify({'success': True, 'message': f"Activity Type '{at.name}' updated."})
-
 @admin_bp.route('/activity-types/<int:at_id>/usage', methods=['GET'])
 @role_required('admin')
 def get_activity_type_usage(at_id):
