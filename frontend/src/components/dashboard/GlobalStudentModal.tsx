@@ -12,6 +12,7 @@ import { DataTable } from './DataTable';
 import { studentColumns } from './StudentListColumns';
 import { AnalyticsFilters } from '@/hooks/useAnalytics';
 import { Search } from 'lucide-react';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/AuthContext';
 
@@ -69,8 +70,9 @@ const GlobalStudentModal: React.FC<GlobalStudentModalProps> = ({ isOpen, onClose
             queryClient.invalidateQueries({ queryKey: ['global-students'] });
             queryClient.invalidateQueries({ queryKey: ['students'] });
             queryClient.invalidateQueries({ queryKey: ['kpi-summary'] });
+            toast.success("Activity deleted.");
         } catch (error: any) {
-            alert(error.response?.data?.error || "Deletion failed");
+            toast.error(error.response?.data?.error || "Deletion failed");
         }
     };
 

@@ -3,7 +3,7 @@ import api from '@/services/api';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Search, Loader2, Award, GraduationCap, Building2, Calendar, FileCheck, ExternalLink } from 'lucide-react';
+import { Search, Loader2, Award, GraduationCap, Building2, Calendar, FileCheck, ExternalLink, ClipboardCheck } from 'lucide-react';
 import { TierBadge } from '@/components/ui/TierBadge';
 
 interface StudentProfile {
@@ -109,8 +109,11 @@ const TpoDashboard = () => {
                             <div className="mx-auto w-20 h-20 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4 border border-slate-200 dark:border-slate-700 shadow-inner">
                                 <span className="text-3xl font-extrabold text-slate-400">{student.full_name[0]?.toUpperCase()}</span>
                             </div>
-                            <CardTitle className="text-2xl">{student.full_name}</CardTitle>
-                            <CardDescription className="text-sm font-medium text-slate-500 mt-1">{student.email}</CardDescription>
+                            <CardTitle className="text-2xl font-black text-slate-900 dark:text-white tracking-tight">{student.full_name}</CardTitle>
+                            <CardDescription className="text-xs font-bold text-slate-500 mt-1 flex items-center justify-center gap-1.5 uppercase tracking-widest">
+                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse"></div>
+                                {student.email}
+                            </CardDescription>
                         </CardHeader>
                         <CardContent>
                             <dl className="mt-4 space-y-4 divide-y divide-slate-100 dark:divide-slate-800/50">
@@ -157,8 +160,14 @@ const TpoDashboard = () => {
                         </CardHeader>
                         <CardContent className="p-0 flex-1 overflow-auto max-h-[600px]">
                             {activities.length === 0 ? (
-                                <div className="p-12 text-center text-slate-500">
-                                    No verified activities found for this student.
+                                <div className="p-12 text-center">
+                                    <div className="w-16 h-16 rounded-2xl bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center mx-auto mb-4 border border-slate-100 dark:border-slate-800">
+                                        <ClipboardCheck className="h-8 w-8 text-slate-300 dark:text-slate-600" />
+                                    </div>
+                                    <h4 className="text-base font-bold text-slate-900 dark:text-white mb-1">No verified records</h4>
+                                    <p className="text-sm text-slate-500 dark:text-slate-400 max-w-[200px] mx-auto">
+                                        This student hasn't had any portfolio items approved yet.
+                                    </p>
                                 </div>
                             ) : (
                                 <div className="divide-y divide-slate-100 dark:divide-slate-800">

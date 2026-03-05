@@ -105,7 +105,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
             fetchStudents();
             onRosterChanged?.();
         } catch (err: any) {
-            alert(err.response?.data?.error || 'Failed to remove student');
+            toast.error(err.response?.data?.error || 'Failed to remove student');
         } finally {
             setRemovingId(null);
         }

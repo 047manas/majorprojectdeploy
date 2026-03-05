@@ -1,5 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
 import ProtectedRoute from '@/components/layout/ProtectedRoute';
 import RoleGuard from '@/components/layout/RoleGuard';
@@ -47,66 +49,69 @@ function App() {
 
     return (
         <AuthProvider>
-            <Routes>
-                {/* Public Routes */}
-                <Route path="/login" element={<Login />} />
-                <Route path="/verify/:token" element={<VerifyPublic />} />
+            <TooltipProvider>
+                <Toaster position="top-right" richColors />
+                <Routes>
+                    {/* Public Routes */}
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/verify/:token" element={<VerifyPublic />} />
 
-                {/* Protected Routes */}
-                <Route element={<ProtectedRoute />}>
-                    {/* Root Redirect */}
-                    <Route path="/" element={<IndexRedirect />} />
+                    {/* Protected Routes */}
+                    <Route element={<ProtectedRoute />}>
+                        {/* Root Redirect */}
+                        <Route path="/" element={<IndexRedirect />} />
 
-                    <Route element={<DashboardLayout />}>
+                        <Route element={<DashboardLayout />}>
 
-                        {/* Admin Routes */}
-                        <Route path="/admin" element={
-                            <RoleGuard allowedRoles={['admin']}>
-                                <Navigate to="/admin/dashboard" replace />
-                            </RoleGuard>
-                        } />
-                        <Route path="/admin/dashboard" element={
-                            <RoleGuard allowedRoles={['admin']}>
-                                <AdminDashboard />
-                            </RoleGuard>
-                        } />
-                        <Route path="/admin/users" element={<RoleGuard allowedRoles={['admin']}><Users /></RoleGuard>} />
-                        <Route path="/admin/analytics" element={<RoleGuard allowedRoles={['admin']}><AnalyticsDashboard /></RoleGuard>} />
-                        <Route path="/admin/activities" element={<RoleGuard allowedRoles={['admin']}><Activities /></RoleGuard>} />
-                        <Route path="/admin/tpo" element={<RoleGuard allowedRoles={['admin']}><TpoDashboard /></RoleGuard>} />
+                            {/* Admin Routes */}
+                            <Route path="/admin" element={
+                                <RoleGuard allowedRoles={['admin']}>
+                                    <Navigate to="/admin/dashboard" replace />
+                                </RoleGuard>
+                            } />
+                            <Route path="/admin/dashboard" element={
+                                <RoleGuard allowedRoles={['admin']}>
+                                    <AdminDashboard />
+                                </RoleGuard>
+                            } />
+                            <Route path="/admin/users" element={<RoleGuard allowedRoles={['admin']}><Users /></RoleGuard>} />
+                            <Route path="/admin/analytics" element={<RoleGuard allowedRoles={['admin']}><AnalyticsDashboard /></RoleGuard>} />
+                            <Route path="/admin/activities" element={<RoleGuard allowedRoles={['admin']}><Activities /></RoleGuard>} />
+                            <Route path="/admin/tpo" element={<RoleGuard allowedRoles={['admin']}><TpoDashboard /></RoleGuard>} />
 
-                        {/* Faculty Routes */}
-                        <Route path="/faculty" element={
-                            <RoleGuard allowedRoles={['faculty']}>
-                                <Navigate to="/faculty/dashboard" replace />
-                            </RoleGuard>
-                        } />
-                        <Route path="/faculty/dashboard" element={
-                            <RoleGuard allowedRoles={['faculty']}>
-                                <AnalyticsDashboard />
-                            </RoleGuard>
-                        } />
-                        <Route path="/faculty/queue" element={<RoleGuard allowedRoles={['faculty']}><VerificationQueue /></RoleGuard>} />
-                        <Route path="/faculty/attendance" element={<RoleGuard allowedRoles={['faculty']}><AttendanceUpload /></RoleGuard>} />
-                        <Route path="/faculty/analytics" element={<RoleGuard allowedRoles={['faculty']}><AnalyticsDashboard /></RoleGuard>} />
+                            {/* Faculty Routes */}
+                            <Route path="/faculty" element={
+                                <RoleGuard allowedRoles={['faculty']}>
+                                    <Navigate to="/faculty/dashboard" replace />
+                                </RoleGuard>
+                            } />
+                            <Route path="/faculty/dashboard" element={
+                                <RoleGuard allowedRoles={['faculty']}>
+                                    <AnalyticsDashboard />
+                                </RoleGuard>
+                            } />
+                            <Route path="/faculty/queue" element={<RoleGuard allowedRoles={['faculty']}><VerificationQueue /></RoleGuard>} />
+                            <Route path="/faculty/attendance" element={<RoleGuard allowedRoles={['faculty']}><AttendanceUpload /></RoleGuard>} />
+                            <Route path="/faculty/analytics" element={<RoleGuard allowedRoles={['faculty']}><AnalyticsDashboard /></RoleGuard>} />
 
-                        {/* Student Routes */}
-                        <Route path="/student" element={
-                            <RoleGuard allowedRoles={['student']}>
-                                <Navigate to="/student/upload" replace />
-                            </RoleGuard>
-                        } />
-                        <Route path="/student/upload" element={<RoleGuard allowedRoles={['student']}><UploadActivity /></RoleGuard>} />
-                        <Route path="/student/portfolio" element={<RoleGuard allowedRoles={['student']}><MyPortfolio /></RoleGuard>} />
-                        <Route path="/student/notifications" element={<RoleGuard allowedRoles={['student']}><Notifications /></RoleGuard>} />
+                            {/* Student Routes */}
+                            <Route path="/student" element={
+                                <RoleGuard allowedRoles={['student']}>
+                                    <Navigate to="/student/upload" replace />
+                                </RoleGuard>
+                            } />
+                            <Route path="/student/upload" element={<RoleGuard allowedRoles={['student']}><UploadActivity /></RoleGuard>} />
+                            <Route path="/student/portfolio" element={<RoleGuard allowedRoles={['student']}><MyPortfolio /></RoleGuard>} />
+                            <Route path="/student/notifications" element={<RoleGuard allowedRoles={['student']}><Notifications /></RoleGuard>} />
 
+                        </Route>
                     </Route>
-                </Route>
 
-                {/* Fallback */}
-                {/* Redirect based on logic, but for now fallback to login if unknown */}
-                <Route path="*" element={<Navigate to="/login" replace />} />
-            </Routes>
+                    {/* Fallback */}
+                    {/* Redirect based on logic, but for now fallback to login if unknown */}
+                    <Route path="*" element={<Navigate to="/login" replace />} />
+                </Routes>
+            </TooltipProvider>
         </AuthProvider>
     );
 }

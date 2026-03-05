@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
 
 interface StudentListWidgetProps {
     filters: AnalyticsFilters;
@@ -94,8 +95,9 @@ const StudentListWidget: React.FC<StudentListWidgetProps> = ({ filters, onFilter
             queryClient.invalidateQueries({ queryKey: ['global-students'] });
             queryClient.invalidateQueries({ queryKey: ['students'] });
             queryClient.invalidateQueries({ queryKey: ['kpi-summary'] });
+            toast.success("Activity deleted.");
         } catch (error: any) {
-            alert(error.response?.data?.error || "Deletion failed");
+            toast.error(error.response?.data?.error || "Deletion failed");
         }
     };
 
@@ -211,6 +213,13 @@ const StudentListWidget: React.FC<StudentListWidgetProps> = ({ filters, onFilter
                         meta: {
                             onDelete: (user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'faculty') ? handleDeleteActivity : undefined,
                             user
+                        },
+                        emptyState: {
+                            icon: <Search className="h-8 w-8 text-slate-300 dark:text-slate-600" />,
+                            title: search ? "No matches found" : "No results",
+                            description: search
+                                ? `We couldn't find any activities matching "${search}". Try a different keyword.`
+                                : "No activities found for the selected filters."
                         }
                     }}
                 />

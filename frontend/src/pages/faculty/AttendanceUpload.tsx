@@ -103,10 +103,10 @@ const AttendanceUpload = () => {
     };
 
     const handleSubmit = async () => {
-        if (!file) return alert("Please select a CSV file");
-        if (!title) return alert("Event title is required");
-        if (!startDate) return alert("Start date is required");
-        if (!selectedTypeId) return alert("Please select an event type");
+        if (!file) return toast.error("Please select a CSV file");
+        if (!title) return toast.error("Event title is required");
+        if (!startDate) return toast.error("Start date is required");
+        if (!selectedTypeId) return toast.error("Please select an event type");
 
         setSubmitting(true);
         setSummary(null);
@@ -133,12 +133,12 @@ const AttendanceUpload = () => {
                 setSelectedTypeId('');
                 fetchEvents();
             } else {
-                alert(response.data.error || 'Upload failed');
+                toast.error(response.data.error || 'Upload failed');
             }
         } catch (error: any) {
             console.error('Upload error:', error);
             const msg = error?.response?.data?.error || error?.message || 'Upload failed. Check server connection.';
-            alert(msg);
+            toast.error(msg);
         } finally {
             setSubmitting(false);
         }

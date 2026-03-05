@@ -15,6 +15,12 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { toast } from 'sonner';
 
 interface ActivityType {
     id: number;
@@ -127,9 +133,10 @@ const Activities = () => {
 
             await api.post(`/admin/activity-types/delete/${id}`);
             fetchData();
+            toast.success("Activity type deleted");
         } catch (error: any) {
             console.error("Failed to delete activity type", error);
-            alert(error.response?.data?.error || "Failed to delete activity type");
+            toast.error(error.response?.data?.error || "Failed to delete activity type");
         }
     };
 
@@ -144,8 +151,9 @@ const Activities = () => {
             }
             setIsModalOpen(false);
             fetchData();
+            toast.success("Activity type saved successfully");
         } catch (error: any) {
-            alert(error.response?.data?.error || "Failed to save activity type");
+            toast.error(error.response?.data?.error || "Failed to save activity type");
         } finally {
             setSubmitting(false);
         }
@@ -198,24 +206,33 @@ const Activities = () => {
                 header: 'Actions',
                 cell: ({ row }) => (
                     <div className="flex items-center gap-2">
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-slate-500 hover:text-indigo-600"
-                            onClick={() => handleOpenEdit(row.original)}
-                            title="Edit Category"
-                        >
-                            <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-slate-500 hover:text-red-600"
-                            onClick={() => handleDelete(row.original.id, row.original.name)}
-                            title="Delete Category"
-                        >
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-slate-500 hover:text-indigo-600"
+                                    onClick={() => handleOpenEdit(row.original)}
+                                >
+                                    <Pencil className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Edit Category</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-slate-500 hover:text-red-600"
+                                    onClick={() => handleDelete(row.original.id, row.original.name)}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete Category</TooltipContent>
+                        </Tooltip>
                     </div>
                 ),
                 size: 100,

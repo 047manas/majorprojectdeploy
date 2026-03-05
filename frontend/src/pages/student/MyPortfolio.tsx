@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '@/services/api';
 import { DataTable } from '@/components/dashboard/DataTable';
+import { toast } from 'sonner';
 import { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +11,11 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useAuth } from '@/context/AuthContext';
 import { TierBadge } from '@/components/ui/TierBadge';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface Activity {
     id: number;
@@ -178,7 +184,7 @@ const MyPortfolio = () => {
             doc.save(`Verified_Portfolio_${user?.institution_id || 'Student'}.pdf`);
         } catch (error) {
             console.error("Failed to download PDF", error);
-            alert("Failed to generate PDF. Please try again.");
+            toast.error("Failed to generate PDF. Please try again.");
         } finally {
             setPdfLoading(false);
         }
@@ -196,9 +202,10 @@ const MyPortfolio = () => {
 
         try {
             await api.delete(`/student/activity/${activity.id}`);
+            toast.success(`Deleted ${activity.title}`);
             fetchData();
         } catch (error: any) {
-            alert(error.response?.data?.error || "Deletion failed");
+            toast.error(error.response?.data?.error || "Deletion failed");
         }
     };
 
@@ -212,11 +219,11 @@ const MyPortfolio = () => {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             if (response.data.success) {
-                alert(response.data.message);
+                toast.success(response.data.message);
                 fetchData();
             }
         } catch (error: any) {
-            alert(error.error || error.response?.data?.error || "Upload failed");
+            toast.error(error.response?.data?.error || error.error || "Upload failed");
         } finally {
             setUploadingId(null);
         }
@@ -338,38 +345,50 @@ const MyPortfolio = () => {
                         ) : (
                             <>
                                 {row.original.certificate_url && (
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => window.open(row.original.certificate_url!, '_blank')}
-                                        title="View Certificate"
-                                        className="h-8 w-8 p-0"
-                                    >
-                                        <Download className="h-3.5 w-3.5 text-sky-600" />
-                                    </Button>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => window.open(row.original.certificate_url!, '_blank')}
+                                                className="h-8 w-8 p-0"
+                                            >
+                                                <Download className="h-3.5 w-3.5 text-sky-600" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>View Certificate</TooltipContent>
+                                    </Tooltip>
                                 )}
 
                                 {row.original.verification_token && (
-                                    <Button
-                                        size="sm"
-                                        variant="outline"
-                                        onClick={() => window.open(`/verify/${row.original.verification_token}`, '_blank')}
-                                        title="Public Verification Link"
-                                        className="h-8 w-8 p-0 text-emerald-600 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
-                                    >
-                                        <ExternalLink className="h-3.5 w-3.5" />
-                                    </Button>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() => window.open(`/verify/${row.original.verification_token}`, '_blank')}
+                                                className="h-8 w-8 p-0 text-emerald-600 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/20"
+                                            >
+                                                <ExternalLink className="h-3.5 w-3.5" />
+                                            </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>Public Verification Link</TooltipContent>
+                                    </Tooltip>
                                 )}
 
-                                <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleEdit(row.original)}
-                                    title="Edit Activity"
-                                    className="h-8 w-8 p-0"
-                                >
-                                    <Pencil className="h-3.5 w-3.5 text-slate-500" />
-                                </Button>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <Button
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() => handleEdit(row.original)}
+                                            className="h-8 w-8 p-0"
+                                        >
+                                            <Pencil className="h-3.5 w-3.5 text-slate-500" />
+                                        </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Edit Activity</TooltipContent>
+                                </Tooltip>
                             </>
                         )}
 
@@ -459,7 +478,23 @@ const MyPortfolio = () => {
                 sorting={sorting}
                 onSortingChange={setSorting}
                 loading={loading}
-                options={{ manualPagination: true }}
+                options={{
+                    manualPagination: true,
+                    emptyState: {
+                        icon: <BookOpen className="h-8 w-8 text-indigo-300 dark:text-indigo-600" />,
+                        title: "No activities found",
+                        description: "You haven't uploaded any certificates yet. Start building your verified portfolio today!",
+                        action: (
+                            <Button
+                                onClick={() => window.location.href = '/student/upload'}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                            >
+                                <UploadCloud className="h-4 w-4 mr-2" />
+                                Upload Now
+                            </Button>
+                        )
+                    }
+                }}
             />
 
             <ActivityEditModal

@@ -11,7 +11,13 @@ import {
     DialogTitle,
     DialogDescription
 } from '@/components/ui/dialog';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { AuditTimeline } from '@/components/dashboard/AuditTimeline';
+import { toast } from 'sonner';
 
 interface PendingActivity {
     id: number;
@@ -86,7 +92,7 @@ const VerificationQueue = () => {
             const response = await api.get(`/faculty/review/${activity.id}`);
             setReviewData(response.data);
         } catch (error: any) {
-            alert(error.response?.data?.error || "Failed to load review details");
+            toast.error(error.response?.data?.error || "Failed to load review details");
             setReviewOpen(false);
         } finally {
             setReviewLoading(false);
@@ -101,7 +107,7 @@ const VerificationQueue = () => {
             setReviewData(null);
             fetchData();
         } catch (error) {
-            alert("Action failed");
+            toast.error("Action failed");
         } finally {
             setActionLoading(false);
         }
@@ -141,15 +147,32 @@ const VerificationQueue = () => {
                 header: 'Actions',
                 cell: ({ row }) => (
                     <div className="flex gap-1.5">
-                        <Button size="sm" variant="outline" onClick={() => handleReview(row.original)}>
-                            <Eye className="h-3.5 w-3.5 mr-1" /> Review
-                        </Button>
-                        <Button size="sm" className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white shadow-sm" onClick={() => handleAction(row.original.id, 'approve')}>
-                            <CheckCircle className="h-3.5 w-3.5" />
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => handleAction(row.original.id, 'reject')}>
-                            <XCircle className="h-3.5 w-3.5" />
-                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button size="sm" variant="outline" onClick={() => handleReview(row.original)}>
+                                    <Eye className="h-3.5 w-3.5 mr-1" /> Review
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Detailed View & History</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button size="sm" className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-white shadow-sm" onClick={() => handleAction(row.original.id, 'approve')}>
+                                    <CheckCircle className="h-3.5 w-3.5" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Approve Submission</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button size="sm" variant="destructive" onClick={() => handleAction(row.original.id, 'reject')}>
+                                    <XCircle className="h-3.5 w-3.5" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Reject Submission</TooltipContent>
+                        </Tooltip>
                     </div>
                 )
             }
@@ -185,7 +208,14 @@ const VerificationQueue = () => {
                 sorting={sorting}
                 onSortingChange={setSorting}
                 loading={loading}
-                options={{ manualPagination: true }}
+                options={{
+                    manualPagination: true,
+                    emptyState: {
+                        icon: <CheckCircle className="h-8 w-8 text-emerald-300 dark:text-emerald-600" />,
+                        title: "Queue is empty",
+                        description: "Great job! All student submissions have been reviewed. Check back later for new entries."
+                    }
+                }}
             />
 
             {/* ===== REVIEW MODAL ===== */}

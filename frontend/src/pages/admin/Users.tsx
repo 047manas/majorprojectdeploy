@@ -8,6 +8,12 @@ import api from '@/services/api';
 import { Plus, Pencil, Trash2, Users as UsersIcon } from 'lucide-react';
 import UserModal from '@/components/dashboard/UserModal';
 import { useAuth } from '@/context/AuthContext';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { toast } from 'sonner';
 
 interface User {
     id: number;
@@ -47,12 +53,12 @@ const Users = () => {
 
     const handleDeleteUser = async (user: User) => {
         if (user.id === currentUser?.id) {
-            alert("Security: You cannot delete your own account.");
+            toast.error("Security: You cannot delete your own account.");
             return;
         }
 
         if (user.email === 'admin@example.com') {
-            alert("Security: Default admin account cannot be deleted.");
+            toast.error("Security: Default admin account cannot be deleted.");
             return;
         }
 
@@ -66,9 +72,10 @@ const Users = () => {
         try {
             await api.post(`/admin/users/${user.id}/delete`, { reason });
             queryClient.invalidateQueries({ queryKey: ['users'] });
+            toast.success("User deleted successfully.");
         } catch (error: any) {
             console.error("Deletion failed", error);
-            alert(error.response?.data?.error || "Failed to delete user.");
+            toast.error(error.response?.data?.error || "Failed to delete user.");
         }
     };
 
@@ -116,19 +123,29 @@ const Users = () => {
                 id: 'actions',
                 cell: ({ row }) => (
                     <div className="flex gap-2">
-                        <Button variant="ghost" size="icon" onClick={() => handleEdit(row.original)} title="Edit User">
-                            <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => handleDeleteUser(row.original)}
-                            title="Delete User"
-                            disabled={row.original.id === currentUser?.id || row.original.email === 'admin@example.com'}
-                        >
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" onClick={() => handleEdit(row.original)}>
+                                    <Pencil className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Edit User</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                    onClick={() => handleDeleteUser(row.original)}
+                                    disabled={row.original.id === currentUser?.id || row.original.email === 'admin@example.com'}
+                                >
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete User</TooltipContent>
+                        </Tooltip>
                     </div>
                 )
             }

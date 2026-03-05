@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { AuditTimeline } from '@/components/dashboard/AuditTimeline';
 import api from '@/services/api';
@@ -105,7 +106,7 @@ const ActivityEditModal: React.FC<ActivityEditModalProps> = ({ isOpen, onClose, 
             onSuccess();
             onClose();
         } catch (error: any) {
-            alert(error.response?.data?.error || "Update failed");
+            toast.error(error.response?.data?.error || "Update failed");
         } finally {
             setLoading(false);
         }

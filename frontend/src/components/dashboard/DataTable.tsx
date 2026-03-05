@@ -132,13 +132,22 @@ export function DataTable<TData, TValue>({
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan={columns.length} className="h-32 text-center text-slate-500">
-                                        <div className="flex flex-col items-center justify-center py-8">
-                                            <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-3">
-                                                <ChevronsRight className="h-6 w-6 text-slate-400" />
+                                    <td colSpan={columns.length} className="h-64 text-center">
+                                        <div className="flex flex-col items-center justify-center py-12 px-4 animate-in fade-in zoom-in duration-500">
+                                            <div className="w-20 h-20 rounded-3xl bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center mb-6 shadow-sm border border-slate-100 dark:border-slate-800">
+                                                {options?.emptyState?.icon || <ChevronsRight className="h-8 w-8 text-slate-300 dark:text-slate-600" />}
                                             </div>
-                                            <p className="text-base font-semibold text-slate-600 dark:text-slate-400">No results found</p>
-                                            <p className="text-sm text-slate-400 mt-1">Try adjusting your filters.</p>
+                                            <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100 mb-2">
+                                                {options?.emptyState?.title || "No data available"}
+                                            </h3>
+                                            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-xs mx-auto leading-relaxed">
+                                                {options?.emptyState?.description || "Try adjusting your filters or adding new records to see results here."}
+                                            </p>
+                                            {options?.emptyState?.action && (
+                                                <div className="mt-6">
+                                                    {options.emptyState.action}
+                                                </div>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

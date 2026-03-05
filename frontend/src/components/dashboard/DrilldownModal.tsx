@@ -15,6 +15,7 @@ import { ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { studentColumns } from './StudentListColumns';
 import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
 
 interface DrilldownModalProps {
     isOpen: boolean;
@@ -117,8 +118,9 @@ const DrilldownModal: React.FC<DrilldownModalProps> = ({ isOpen, onClose, catego
             queryClient.invalidateQueries({ queryKey: ['global-students-widget'] });
             queryClient.invalidateQueries({ queryKey: ['events'] });
             queryClient.invalidateQueries({ queryKey: ['kpi-summary'] });
+            toast.success("Activity deleted.");
         } catch (error: any) {
-            alert(error.response?.data?.error || "Deletion failed");
+            toast.error(error.response?.data?.error || "Deletion failed");
         }
     };
 

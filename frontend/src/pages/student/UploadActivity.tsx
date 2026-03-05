@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { toast } from 'sonner';
 import api from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -66,7 +67,7 @@ const UploadActivity = () => {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!file) return alert("Please select a file");
+        if (!file) return toast.error("Please select a file");
 
         setSubmitting(true);
         const formData = new FormData();
@@ -85,14 +86,14 @@ const UploadActivity = () => {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             if (response.data.success) {
-                alert("Upload Successful!");
+                toast.success("Upload Successful!");
                 setTitle('');
                 setFile(null);
                 setIssuer('');
                 window.location.href = '/student/portfolio';
             }
         } catch (error: any) {
-            alert(error.response?.data?.error || "Upload failed");
+            toast.error(error.response?.data?.error || "Upload failed");
         } finally {
             setSubmitting(false);
         }
@@ -100,7 +101,7 @@ const UploadActivity = () => {
 
     // Handle attendance-specific upload
     const handleAttendanceUpload = async () => {
-        if (!file || !attendanceActivityId) return alert("Please select a certificate file");
+        if (!file || !attendanceActivityId) return toast.error("Please select a certificate file");
 
         setSubmitting(true);
         const formData = new FormData();
@@ -115,13 +116,14 @@ const UploadActivity = () => {
             if (response.data.success) {
                 setUploadSuccess(true);
                 setFile(null);
+                toast.success("Attendance certificate uploaded successfully!");
                 // Auto-redirect after 2 seconds
                 setTimeout(() => {
                     window.location.href = '/student/portfolio';
                 }, 2000);
             }
         } catch (error: any) {
-            alert(error.response?.data?.error || "Upload failed");
+            toast.error(error.response?.data?.error || "Upload failed");
         } finally {
             setSubmitting(false);
         }

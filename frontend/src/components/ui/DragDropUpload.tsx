@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from 'react';
 import { UploadCloud, X, CheckCircle } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface DragDropUploadProps {
     accept: string;
@@ -39,7 +40,7 @@ const DragDropUpload = ({ accept, file, onFileChange, label, hint }: DragDropUpl
             if (isValid || acceptedTypes.includes('*')) {
                 onFileChange(droppedFile);
             } else {
-                alert(`Invalid file type. Accepted: ${accept}`);
+                toast.error(`Invalid file type. Accepted: ${accept}`);
             }
         }
     }, [accept, onFileChange]);

@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
 import api from '@/services/api';
 
 interface User {
@@ -76,7 +77,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, onSuccess 
             onSuccess();
             onClose();
         } catch (error: any) {
-            alert(error.response?.data?.error || "Operation failed");
+            toast.error(error.response?.data?.error || "Operation failed");
         } finally {
             setLoading(false);
         }
@@ -96,6 +97,15 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, onSuccess 
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="email" className="text-right">Email</Label>
                         <Input id="email" type="email" value={formData.email} onChange={e => handleChange('email', e.target.value)} className="col-span-3" required />
+                    </div>
+
+                    <div className="relative py-2">
+                        <div className="absolute inset-0 flex items-center" aria-hidden="true">
+                            <div className="w-full border-t border-slate-100 dark:border-slate-800"></div>
+                        </div>
+                        <div className="relative flex justify-center">
+                            <span className="bg-white dark:bg-slate-950 px-2 text-[0.65rem] font-bold uppercase tracking-wider text-slate-400">Security & Access</span>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-4 items-center gap-4">

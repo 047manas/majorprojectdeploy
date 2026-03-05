@@ -160,7 +160,12 @@ const AnalyticsDashboard = () => {
                                 </div>
                             ))}
                             {!deptLoading && (!deptData || deptData.length === 0) && (
-                                <p className="text-center text-slate-500 py-4">No department data available.</p>
+                                <div className="py-12 text-center text-slate-500">
+                                    <div className="w-12 h-12 rounded-xl bg-slate-50 dark:bg-slate-800/50 flex items-center justify-center mx-auto mb-3">
+                                        <Building2 className="h-6 w-6 text-slate-300 dark:text-slate-600" />
+                                    </div>
+                                    <p className="text-sm font-medium">No department data available</p>
+                                </div>
                             )}
                         </div>
                     </CardContent>
