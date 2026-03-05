@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { AuditTimeline } from '@/components/dashboard/AuditTimeline';
 import api from '@/services/api';
 
 interface Activity {
@@ -15,6 +16,7 @@ interface Activity {
     activity_type_id?: number;
     custom_category?: string;
     activity_type_name?: string;
+    audit_trail?: any[];
 }
 
 interface ActivityType {
@@ -163,6 +165,16 @@ const ActivityEditModal: React.FC<ActivityEditModalProps> = ({ isOpen, onClose, 
                             <p className="text-[0.7rem] text-slate-500 mt-1">Leave blank to keep existing file</p>
                         </div>
                     </div>
+
+                    {/* Timeline UI */}
+                    {activity?.audit_trail && activity.audit_trail.length > 0 && (
+                        <div className="col-span-4 mt-2 p-4 bg-slate-50/50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-800">
+                            <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Activity Timeline</h4>
+                            <div className="max-h-[200px] overflow-y-auto pr-2">
+                                <AuditTimeline events={activity.audit_trail} />
+                            </div>
+                        </div>
+                    )}
 
                     <DialogFooter>
                         <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>

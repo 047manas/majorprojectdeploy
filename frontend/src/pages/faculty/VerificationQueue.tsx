@@ -11,6 +11,7 @@ import {
     DialogTitle,
     DialogDescription
 } from '@/components/ui/dialog';
+import { AuditTimeline } from '@/components/dashboard/AuditTimeline';
 
 interface PendingActivity {
     id: number;
@@ -38,6 +39,7 @@ interface ReviewData {
     certificate_url: string | null;
     certificate_file: string | null;
     created_at: string;
+    audit_trail?: any[];
 }
 
 const VerificationQueue = () => {
@@ -289,6 +291,16 @@ const VerificationQueue = () => {
                                     </div>
                                 )}
                             </div>
+
+                            {/* Audit Trail Timeline */}
+                            {reviewData.audit_trail && reviewData.audit_trail.length > 0 && (
+                                <div className="p-4 bg-slate-50/80 dark:bg-slate-800/50 rounded-xl border border-slate-200/60 dark:border-slate-700/40 mt-4">
+                                    <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Activity History</h4>
+                                    <div className="max-h-[200px] overflow-y-auto pr-2">
+                                        <AuditTimeline events={reviewData.audit_trail} />
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Comment Field */}
                             <div>

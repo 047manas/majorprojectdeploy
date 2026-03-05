@@ -47,6 +47,8 @@ class Notification(db.Model):
     message = db.Column(db.Text, nullable=False)
     type = db.Column(db.String(50), default='info') # 'info', 'warning', 'error', 'success'
     is_read = db.Column(db.Boolean, default=False)
+    action_url = db.Column(db.String(500), nullable=True)  # Frontend route to navigate to
+    action_data = db.Column(db.Text, nullable=True)  # JSON string with pre-fill data
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relationship
@@ -108,6 +110,9 @@ class StudentActivity(db.Model):
     
     # Detailed JSON logs for auto-verification
     auto_details = db.Column(db.Text, nullable=True)
+    
+    # Immutable JSON array of timeline events (Audit Trail)
+    audit_trail = db.Column(db.Text, nullable=True)
     
     is_deleted = db.Column(db.Boolean, default=False, index=True)
     deletion_reason = db.Column(db.Text, nullable=True)

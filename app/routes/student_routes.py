@@ -12,6 +12,7 @@ import secrets
 from datetime import datetime
 import uuid
 import filetype
+from app.utils.audit import add_audit_event
 
 student_bp = Blueprint('student', __name__)
 
@@ -61,9 +62,6 @@ def dashboard():
 @student_bp.route('/upload', methods=['POST'])
 @login_required
 def upload_activity():
-    print(f"DEBUG: UPLOAD ROUTE HIT by User {current_user.id}")
-    print(f"DEBUG: Form Data: {request.form}")
-    print(f"DEBUG: Files: {request.files}")
 
     if current_user.role != 'student':
         return jsonify({'error': 'Unauthorized'}), 403
@@ -104,6 +102,13 @@ def upload_activity():
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
+
+    # Enforce 5MB file size limit
+    file.seek(0, 2)
+    size = file.tell()
+    file.seek(0)
+    if size > current_app.config.get('MAX_UPLOAD_SIZE', 5 * 1024 * 1024):
+        return jsonify({'error': 'File too large. Maximum size is 5MB.'}), 400
         
     # Secure Upload Logic
     if file and allowed_file(file.filename):
@@ -152,9 +157,8 @@ def upload_activity():
                 ).first()
                 if hod:
                     assigned_reviewer_id = hod.id
-                    print(f"DEBUG: Assigned to HOD {hod.email} (Reason: 'Other' or No In-Charge)")
                 else:
-                    print(f"DEBUG: No HOD found for {current_user.department}. Leaving unassigned.")
+                    pass  # No HOD found, leave unassigned
 
         if start_date_str:
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
@@ -189,6 +193,10 @@ def upload_activity():
         db.session.add(new_activity)
         db.session.commit()
         
+        # Log Audit Trail
+        aud_msg = f"Uploaded via portal. Initial Status: {status}"
+        add_audit_event(new_activity.id, current_user.full_name, "Document Uploaded", aud_msg)
+
         msg_status = "Verified!" if status == "auto_verified" else "Queued for Faculty."
         
         return jsonify({
@@ -206,21 +214,33 @@ def upload_activity():
 @login_required
 def portfolio():
     activities = StudentActivity.query.filter_by(student_id=current_user.id, is_deleted=False).order_by(StudentActivity.created_at.desc()).all()
-    # Serialize
-    data = [{
-        'id': a.id,
-        'title': a.title,
-        'issuer_name': a.issuer_name,
-        'start_date': a.start_date.isoformat() if a.start_date else None,
-        'status': a.status,
-        'campus_type': a.campus_type or 'off_campus',
-        'is_attendance_uploaded': a.is_attendance_uploaded,
-        'certificate_url': f"/api/student/uploads/{a.certificate_file}" if a.certificate_file else None,
-        'verification_token': a.verification_token,
-        'verification_mode': a.verification_mode,
-        'activity_type_name': a.activity_type.name if a.activity_type else (a.custom_category or 'Other')
-    } for a in activities]
-    return jsonify(data)
+    data = []
+    total_points = 0
+    for a in activities:
+        # Calculate points for verified activities
+        if a.status in ['auto_verified', 'faculty_verified', 'hod_approved'] and a.activity_type:
+            total_points += a.activity_type.weightage
+            
+        data.append({
+            'id': a.id,
+            'title': a.title,
+            'issuer_name': a.issuer_name,
+            'start_date': a.start_date.isoformat() if a.start_date else None,
+            'status': a.status,
+            'campus_type': a.campus_type or 'off_campus',
+            'is_attendance_uploaded': a.is_attendance_uploaded,
+            'certificate_url': f"/api/student/uploads/{a.certificate_file}" if a.certificate_file else None,
+            'verification_token': a.verification_token,
+            'verification_mode': a.verification_mode,
+            'activity_type_name': a.activity_type.name if a.activity_type else (a.custom_category or 'Other'),
+            'points': a.activity_type.weightage if a.activity_type else 0,
+            'audit_trail': json.loads(a.audit_trail) if a.audit_trail else []
+        })
+
+    return jsonify({
+        'activities': data,
+        'total_points': total_points
+    })
 
 @student_bp.route('/portfolio.pdf')
 @login_required
@@ -305,6 +325,13 @@ def edit_activity(activity_id):
     if 'certificate' in request.files:
         file = request.files['certificate']
         if file and file.filename and allowed_file(file.filename):
+            # Enforce 5MB file size limit
+            file.seek(0, 2)
+            size = file.tell()
+            file.seek(0)
+            if size > current_app.config.get('MAX_UPLOAD_SIZE', 5 * 1024 * 1024):
+                return jsonify({'error': 'File too large. Maximum size is 5MB.'}), 400
+                
             # Delete old file
             if activity.certificate_file:
                 old_path = os.path.join(current_app.config['UPLOAD_FOLDER'], activity.certificate_file)
@@ -329,6 +356,10 @@ def edit_activity(activity_id):
     activity.faculty_comment = None
     
     db.session.commit()
+    
+    # Log Audit Trail
+    add_audit_event(activity.id, current_user.full_name, "Document Re-uploaded/Edited", "Student edited metadata or replaced the certificate.")
+    
     return jsonify({'success': True, 'message': 'Activity updated successfully'})
 
 @student_bp.route('/activity/<int:activity_id>', methods=['DELETE'])
@@ -357,16 +388,33 @@ def delete_activity(activity_id):
 @student_bp.route('/notifications', methods=['GET'])
 @login_required
 def get_notifications():
-    notifs = Notification.query.filter_by(user_id=current_user.id).order_by(Notification.created_at.desc()).all()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    per_page = min(per_page, 100)  # Cap at 100
+
+    pagination = Notification.query.filter_by(
+        user_id=current_user.id
+    ).order_by(
+        Notification.created_at.desc()
+    ).paginate(page=page, per_page=per_page, error_out=False)
+
     data = [{
         'id': n.id,
         'title': n.title,
         'message': n.message,
         'type': n.type,
         'is_read': n.is_read,
+        'action_url': n.action_url,
+        'action_data': n.action_data,
         'created_at': n.created_at.isoformat()
-    } for n in notifs]
-    return jsonify(data)
+    } for n in pagination.items]
+    return jsonify({
+        'notifications': data,
+        'total': pagination.total,
+        'page': pagination.page,
+        'pages': pagination.pages,
+        'has_next': pagination.has_next
+    })
 
 @student_bp.route('/notifications/read-all', methods=['POST'])
 @login_required
@@ -398,6 +446,13 @@ def upload_for_attendance(activity_id):
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
+
+    # Enforce 5MB file size limit
+    file.seek(0, 2)
+    size = file.tell()
+    file.seek(0)
+    if size > current_app.config.get('MAX_UPLOAD_SIZE', 5 * 1024 * 1024):
+        return jsonify({'error': 'File too large. Maximum size is 5MB.'}), 400
 
     if file and allowed_file(file.filename):
         if not validate_mime_type(file.stream):
@@ -454,6 +509,9 @@ def upload_for_attendance(activity_id):
                     activity.assigned_reviewer_id = hod.id
 
         db.session.commit()
+
+        # Log Audit Trail
+        add_audit_event(activity.id, current_user.full_name, "Attendance Document Uploaded", f"Result: {status}")
 
         msg_status = "Verified!" if status == 'auto_verified' else 'Queued for Faculty.'
         return jsonify({

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, Loader2, Award, GraduationCap, Building2, Calendar, FileCheck, ExternalLink } from 'lucide-react';
+import { TierBadge } from '@/components/ui/TierBadge';
 
 interface StudentProfile {
     full_name: string;
@@ -133,8 +134,11 @@ const TpoDashboard = () => {
                                 </div>
                             </dl>
 
-                            <div className="mt-6 p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/10 border border-emerald-100 dark:border-emerald-800/50 flex flex-col items-center justify-center shadow-inner">
-                                <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1">Total Activity Score</span>
+                            <div className="mt-6 p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/10 border border-emerald-100 dark:border-emerald-800/50 flex flex-col items-center justify-center shadow-inner relative overflow-hidden">
+                                <div className="absolute top-2 right-2">
+                                    <TierBadge points={totalPoints} size="sm" showLabel={true} />
+                                </div>
+                                <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1 mt-2">Total Activity Score</span>
                                 <span className="text-5xl font-black text-emerald-700 dark:text-emerald-500 tracking-tighter">{totalPoints}</span>
                             </div>
                         </CardContent>

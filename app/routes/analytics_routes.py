@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify, send_file
 from flask_login import login_required, current_user
 from app.services.analytics_service import AnalyticsService
 from app.utils.api_response import success_response, error_response
-from functools import wraps
+from app.utils.decorators import role_required
 from datetime import datetime
 from app.models import db, User, StudentActivity
 from sqlalchemy import func
@@ -22,22 +22,7 @@ def get_filters():
         "campus_type": request.args.get('campus_type')
     }
 
-# --- Auth Helpers ---
-# Fix #10: Return JSON 403 instead of abort(403)
-def role_required(*roles):
-    def decorator(f):
-        @wraps(f)
-        @login_required
-        def wrapped(*args, **kwargs):
-            if current_user.role not in roles:
-                return error_response('Unauthorized access', 403)
-            return f(*args, **kwargs)
-        return wrapped
-    return decorator
-
 # --- JSON API Endpoints ---
-# Fix #7: Routes now use simple paths (blueprint prefix /api/analytics handles the rest)
-# e.g., '/meta' becomes /api/analytics/meta
 
 @analytics_bp.route('/meta')
 @login_required

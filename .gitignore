@@ -9,5 +9,17 @@ venv/
 *.log
 .env
 instance/
+*.db
+.pytest_cache/
+
+# Uploads
 app/uploads/*
 !app/uploads/.gitkeep
+
+# Frontend build
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# OS files
+Thumbs.db

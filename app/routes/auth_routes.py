@@ -40,14 +40,12 @@ def login():
             'institution_id': user.institution_id
         }
         
-        print(f"DEBUG: Login successful for user {user.email}")
         return jsonify({
             'success': True,
             'message': 'Logged in successfully',
             'user': user_data
         })
     else:
-        print("DEBUG: Login failed - Invalid credentials")
         return error_response('Invalid email or password', 401)
 
 @auth_bp.route('/logout', methods=['GET', 'POST'])
@@ -63,7 +61,6 @@ def logout():
 @auth_bp.route('/me', methods=['GET'])
 @login_required
 def get_current_user():
-    print(f"DEBUG: /me accessed by {current_user}")
     return success_response({
         'id': current_user.id,
         'full_name': current_user.full_name,

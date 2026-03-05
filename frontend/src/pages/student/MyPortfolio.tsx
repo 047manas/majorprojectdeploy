@@ -3,11 +3,13 @@ import api from '@/services/api';
 import { DataTable } from '@/components/dashboard/DataTable';
 import { ColumnDef, PaginationState, SortingState } from '@tanstack/react-table';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Download, ExternalLink, FileDown, Pencil, Trash2, Loader2, UploadCloud, BookOpen } from 'lucide-react';
 import ActivityEditModal from '@/components/dashboard/ActivityEditModal';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { useAuth } from '@/context/AuthContext';
+import { TierBadge } from '@/components/ui/TierBadge';
 
 interface Activity {
     id: number;
@@ -36,6 +38,7 @@ const getVerificationModeLabel = (mode: string | null): string | null => {
 const MyPortfolio = () => {
     const { user } = useAuth();
     const [data, setData] = useState<Activity[]>([]);
+    const [totalPoints, setTotalPoints] = useState<number>(0);
     const [loading, setLoading] = useState(true);
     const [pdfLoading, setPdfLoading] = useState(false);
     const [pagination, setPagination] = useState<PaginationState>({
@@ -54,8 +57,10 @@ const MyPortfolio = () => {
             const response = await api.get('/student/portfolio');
             if (Array.isArray(response.data)) {
                 setData(response.data);
+                setTotalPoints(0);
             } else {
-                setData([]);
+                setData(response.data.activities || []);
+                setTotalPoints(response.data.total_points || 0);
             }
         } catch (error) {
             console.error("Failed to fetch portfolio", error);
@@ -75,21 +80,56 @@ const MyPortfolio = () => {
 
             const doc = new jsPDF();
 
-            // Header
+            // Header Background
             doc.setFillColor(79, 70, 229); // Indigo 600
-            doc.rect(0, 0, 210, 40, 'F');
-            doc.setTextColor(255, 255, 255);
-            doc.setFontSize(24);
-            doc.text('CertifyX', 14, 20);
-            doc.setFontSize(12);
-            doc.text('Official Verified Portfolio', 14, 30);
+            doc.rect(0, 0, 210, 45, 'F');
 
-            // Student Info
+            // Header Text
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(28);
+            doc.setFont("helvetica", "bold");
+            doc.text('CertifyX', 14, 22);
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "normal");
+            doc.text('Official Verified e-Portfolio', 14, 32);
+
+            // Determine Tier
+            let tier = "Bronze";
+            if (totalPoints >= 250) tier = "Platinum";
+            else if (totalPoints >= 120) tier = "Gold";
+            else if (totalPoints >= 50) tier = "Silver";
+
+            // Tier & Points Badge in Header
+            doc.setFontSize(14);
+            doc.setFont("helvetica", "bold");
+            doc.text(`Tier: ${tier}`, 150, 22);
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Total Points: ${totalPoints}`, 150, 32);
+
+            // Student Info Section
             doc.setTextColor(50, 50, 50);
             doc.setFontSize(14);
-            doc.text(`Name: ${user?.full_name || 'Student'}`, 14, 55);
-            doc.text(`ID/Roll No: ${user?.institution_id || 'N/A'}`, 14, 65);
-            doc.text(`Department: ${user?.department || 'N/A'}`, 14, 75);
+            doc.setFont("helvetica", "bold");
+            doc.text('Student Information', 14, 58);
+
+            doc.setFontSize(11);
+            doc.setFont("helvetica", "normal");
+            doc.text(`Name: ${user?.full_name || 'Student'}`, 14, 66);
+            doc.text(`ID/Roll No: ${user?.institution_id || 'N/A'}`, 14, 73);
+            doc.text(`Department: ${user?.department || 'N/A'}`, 14, 80);
+            doc.text(`Email: ${user?.email || 'N/A'}`, 14, 87);
+
+            // Generation Date
+            doc.setFontSize(9);
+            doc.setTextColor(150, 150, 150);
+            const now = new Date();
+            doc.text(`Generated on: ${now.toLocaleDateString()} at ${now.toLocaleTimeString()}`, 130, 87);
+
+            // Description
+            doc.setTextColor(50, 50, 50);
+            doc.setFontSize(10);
+            doc.text('This document contains a cryptographically verified record of extracurricular activities.', 14, 98);
 
             // Generate Table
             const tableData = verifiedActivities.map(a => [
@@ -97,33 +137,45 @@ const MyPortfolio = () => {
                 a.activity_type_name,
                 a.issuer_name || 'N/A',
                 new Date(a.start_date).toLocaleDateString(),
-                a.status.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())
+                a.verification_token ? `Token: ${a.verification_token}` : 'Manual Verification'
             ]);
 
             autoTable(doc, {
-                startY: 85,
-                head: [['Activity', 'Type', 'Issuer', 'Date', 'Status']],
+                startY: 105,
+                head: [['Activity Title', 'Category', 'Issuer', 'Date', 'Verification']],
                 body: tableData,
                 theme: 'striped',
-                headStyles: { fillColor: [79, 70, 229] },
-                styles: { fontSize: 10, cellPadding: 5 }
+                headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold' },
+                styles: { fontSize: 9, cellPadding: 5 },
+                columnStyles: {
+                    0: { cellWidth: 45 },
+                    1: { cellWidth: 40 },
+                    2: { cellWidth: 35 },
+                    3: { cellWidth: 25 },
+                    4: { cellWidth: 45, textColor: [79, 70, 229] } // Highlight verification text
+                }
             });
 
             // Footer
             const pageCount = (doc as any).internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
-                doc.setFontSize(10);
+                doc.setFontSize(9);
                 doc.setTextColor(150);
+
+                // Add a line above footer
+                doc.setDrawColor(200, 200, 200);
+                doc.line(14, doc.internal.pageSize.height - 15, 196, doc.internal.pageSize.height - 15);
+
                 doc.text(
-                    `Generated by CertifyX Platform. Page ${i} of ${pageCount}`,
+                    `Page ${i} of ${pageCount} — CertifyX Institutional e-Portfolio System`,
                     doc.internal.pageSize.width / 2,
-                    doc.internal.pageSize.height - 10,
+                    doc.internal.pageSize.height - 8,
                     { align: 'center' }
                 );
             }
 
-            doc.save(`${user?.institution_id || 'student'}_portfolio.pdf`);
+            doc.save(`Verified_Portfolio_${user?.institution_id || 'Student'}.pdf`);
         } catch (error) {
             console.error("Failed to download PDF", error);
             alert("Failed to generate PDF. Please try again.");
@@ -366,6 +418,36 @@ const MyPortfolio = () => {
                     <FileDown className="h-4 w-4 mr-2" />
                     {pdfLoading ? 'Generating...' : 'Download Portfolio'}
                 </Button>
+            </div>
+
+            {/* Score & Badge Hero */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                <Card className="col-span-1 md:col-span-1 border-indigo-100 dark:border-indigo-900/40 bg-white/60 dark:bg-slate-900/40 relative overflow-hidden backdrop-blur-xl shrink-0 h-48">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-full blur-3xl -mr-10 -mt-10"></div>
+                    <CardContent className="h-full flex flex-col justify-center items-center py-6">
+                        <TierBadge points={totalPoints} size="lg" />
+                        <div className="mt-4 text-center">
+                            <span className="text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">Verified Points</span>
+                            <h2 className="text-4xl font-black text-slate-800 dark:text-white mt-1 leading-none">{totalPoints}</h2>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <div className="col-span-1 md:col-span-3">
+                    <Card className="border-indigo-100 dark:border-indigo-900/40 bg-white/60 dark:bg-slate-900/40 backdrop-blur-xl shadow-sm h-full flex flex-col justify-between">
+                        <CardContent className="pt-6 h-full flex items-center mb-0 pb-6">
+                            <div className="w-full">
+                                <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Gamification Status</h3>
+                                <div className="space-y-4 w-full text-sm font-medium text-slate-600 dark:text-slate-400">
+                                    <div className="flex justify-between w-full"><span>Bronze (0)</span> <span>Silver (50)</span> <span>Gold (120)</span> <span>Platinum (250)</span></div>
+                                    <div className="w-full h-3 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                                        <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-1000" style={{ width: `${Math.min((totalPoints / 250) * 100, 100)}%` }}></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
             </div>
 
             <DataTable

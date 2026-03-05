@@ -30,7 +30,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 setUser(response.data.data);
             }
         } catch (error) {
-            console.log("Not authenticated");
             setUser(null);
         } finally {
             setLoading(false);

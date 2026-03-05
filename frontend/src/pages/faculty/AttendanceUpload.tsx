@@ -28,6 +28,7 @@ interface ManagedEvent {
     total_students: number;
     uploaded_count: number;
     pending_count: number;
+    is_owner?: boolean;
 }
 
 const AttendanceUpload = () => {
@@ -386,6 +387,7 @@ const AttendanceUpload = () => {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 event={selectedEvent}
+                onRosterChanged={fetchEvents}
             />
         </div>
     );

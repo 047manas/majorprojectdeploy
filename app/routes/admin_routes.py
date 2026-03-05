@@ -2,27 +2,20 @@ from flask import Blueprint, redirect, url_for, flash, request, abort, jsonify, 
 import os
 from flask_login import login_required, current_user
 from app.models import User, db, ActivityType, StudentActivity, Notification
+from app.utils.decorators import role_required
 from werkzeug.security import generate_password_hash
-from functools import wraps
 
 admin_bp = Blueprint('admin', __name__)
-
-# --- Auth Helpers ---
-def role_required(*roles):
-    def decorator(f):
-        @wraps(f)
-        @login_required
-        def wrapped(*args, **kwargs):
-            if current_user.role not in roles:
-                return jsonify({'error': 'Unauthorized access'}), 403
-            return f(*args, **kwargs)
-        return wrapped
-    return decorator
 
 @admin_bp.route('/users')
 @role_required('admin')
 def users_dashboard():
-    users = User.query.filter_by(is_deleted=False).order_by(User.created_at.desc()).all()
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 100, type=int)
+    per_page = min(per_page, 200)
+
+    pagination = User.query.filter_by(is_deleted=False).order_by(User.created_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
+    users = pagination.items
     users_data = [{
         'id': u.id,
         'email': u.email,
@@ -172,7 +165,8 @@ def delete_user(user_id):
         user_id=user.id,
         title="Account Deleted",
         message=f"Your account has been deleted by an administrator. Reason: {reason}",
-        type='warning'
+        type='warning',
+        action_url=None
     )
     db.session.add(notif)
     
@@ -313,7 +307,8 @@ def admin_delete_activity(activity_id):
         user_id=activity.student_id,
         title="Activity Deleted",
         message=f"Your activity '{activity.title}' has been deleted by {current_user.full_name}. Reason: {reason}",
-        type='warning'
+        type='warning',
+        action_url='/student/portfolio'
     )
     db.session.add(notif)
 

@@ -1,5 +1,4 @@
 import os
-
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -8,22 +7,18 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'postgresql://postgres:root%40123@localhost:5432/smarthub')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    MAX_CONTENT_LENGTH = 10 * 1024 * 1024  # 10 MB limit
-    
-    # Security: Max Upload Size 16MB
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024
-    
-    # Upload Folder
-    # Assuming 'app' folder is one level down from root where config.py resides
-    # But wait, config.py is in root. So app/uploads is correct relative to root.
-    # However, Flask usually handles relative paths from instance_path or root_path.
-    # Let's make it absolute to be safe.
+
+    # Upload limits
+    MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5 MB hard limit
+    MAX_UPLOAD_SIZE = 5 * 1024 * 1024     # 5 MB for application-level checks
+
+    # Upload folder
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'app', 'uploads')
 
     # Session/Cookie Settings
     SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SECURE = False # Dev is HTTP
+    SESSION_COOKIE_SECURE = False  # Set True in production (HTTPS)
     SESSION_COOKIE_SAMESITE = 'Lax'
     REMEMBER_COOKIE_HTTPONLY = True
-    REMEMBER_COOKIE_SECURE = False
+    REMEMBER_COOKIE_SECURE = False  # Set True in production (HTTPS)

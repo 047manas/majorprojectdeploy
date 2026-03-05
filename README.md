@@ -1,58 +1,105 @@
-# Certificate Verification System (B.Tech Major Project)
+# CertifyX — Student Activity Verification System
 
-A secure, digital platform for issuing, verifying, and managing student activity certificates. Built with Flask, PostgreSQL, and hashing for integrity.
+A centralized platform for tracking, verifying, and reporting student extracurricular activities for NAAC accreditation and institutional transparency.
 
 ## Features
-- **Student Dashboard**: Submit activity certificates, view status, generate portfolio PDF.
-- **Faculty/Admin Dashboard**: Review pending requests, approve/reject with comments.
-- **Auto-Verification**: Automated checks for URL reachability and name matching.
-- **Public Verification**: QR/Link-based verification for third parties.
-- **Secure Hash Storage**: Tamper-proof certificate tracking using SHA-256.
 
-## Setup Instructions
+- **Multi-tier Verification** — Student uploads → Faculty verifies → HOD approves
+- **Auto-verification Engine** — Hash-based, QR-based, and URL-based certificate verification
+- **Attendance Management** — Faculty uploads CSV rosters, students upload certificates
+- **Activity Points System** — Weighted scoring per activity type
+- **TPO Dashboard** — Search student by roll number, view verified activity score
+- **NAAC Analytics** — KPIs, department-wise participation, Excel exports
+- **Clickable Notifications** — Deep-linked notifications with pre-filled actions
+- **Public Verification** — Token-based public certificate verification page
 
-### 1. Database Setup (PostgreSQL)
-1. Install PostgreSQL and create a database named `smarthub` (or update `config.py` with your DB name).
-2. Update `config.py` with your PostgreSQL credentials:
-   ```python
-   SQLALCHEMY_DATABASE_URI = "postgresql://postgres:YOUR_PASSWORD@localhost:5432/smarthub"
-   ```
+## Tech Stack
 
-### 2. Installation
-1. Install Python 3.10+.
-2. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+| Layer | Technology |
+|---|---|
+| Backend | Flask, SQLAlchemy, Alembic |
+| Frontend | React, TypeScript, Vite, Tailwind CSS, shadcn/ui |
+| Database | SQLite (dev) / PostgreSQL (prod) |
+| Auth | Flask-Login with role-based access |
 
-### 3. Initialize Database
-Run the initialization script to create tables and default users:
-```bash
-python scripts/init_db.py
-```
-*Note: This will reset the database and create a default admin user.*
+## User Roles
 
-### 4. Run the Application
-```bash
-python run.py
-```
-Access the app at `http://localhost:5000`.
-
-## Default Credentials
-- **Admin**: `admin@example.com` / `admin123`
-- **Faculty (Dr. Smith)**: `drsmith@college.edu` / `password`
-- **HOD CSE**: `hod.cse@college.edu` / `password`
+| Role | Access |
+|---|---|
+| **Student** | Upload certificates, view portfolio, receive notifications |
+| **Faculty** | Review queue, approve/reject, manage attendance rosters |
+| **HOD** | Department-wide visibility, final approval authority |
+| **Admin** | Full access, user management, activity types, analytics |
 
 ## Project Structure
-- `app/`: Core application (Routes, Models, Templates, Static).
-- `scripts/`: Utility scripts.
-- `docs/`: Design and Architecture documentation.
-- `config.py`: Configuration settings.
-- `run.py`: Application entry point.
 
-## Maintenance Scripts
-Utility scripts are located in `scripts/maintenance/`. Run them as modules from the root directory:
+```
+├── app/
+│   ├── __init__.py          # Flask app factory
+│   ├── models.py            # Database models
+│   ├── routes/              # API endpoints
+│   │   ├── admin_routes.py
+│   │   ├── analytics_routes.py
+│   │   ├── auth_routes.py
+│   │   ├── faculty_routes.py
+│   │   ├── public_routes.py
+│   │   ├── student_routes.py
+│   │   └── tpo_routes.py
+│   ├── services/            # Business logic
+│   │   ├── analytics_service.py
+│   │   └── verification/    # Auto-verification engine
+│   ├── utils/               # Shared utilities
+│   │   ├── api_response.py
+│   │   └── decorators.py    # role_required decorator
+│   └── verification/        # Hash store & QR reader
+├── frontend/
+│   └── src/
+│       ├── pages/           # Route pages
+│       ├── components/      # Reusable UI components
+│       ├── context/         # Auth context
+│       └── services/        # API client
+├── migrations/              # Alembic database migrations
+├── scripts/
+│   ├── init_db.py           # Database initialization
+│   └── maintenance/         # One-off migration scripts
+├── tests/                   # Unit tests
+├── config.py                # Flask configuration
+├── run.py                   # Application entry point
+└── requirements.txt         # Python dependencies
+```
+
+## Setup
+
+### Backend
 ```bash
-python -m scripts.maintenance.check_admin
-python -m scripts.maintenance.cleanup_orphans
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+pip install -r requirements.txt
+python scripts/init_db.py     # Initialize DB + admin user
+python run.py                 # Start Flask server
+```
+
+### Frontend
+```bash
+cd frontend
+npm install
+npm run dev                   # Start Vite dev server
+```
+
+### Default Admin
+- **Email:** admin@certifyx.com
+- **Password:** admin123
+
+## Verification Workflow
+
+```
+Student uploads certificate
+        ↓
+Auto-verification (hash / QR / URL)
+        ↓
+Faculty reviews → approves (faculty_verified)
+        ↓
+HOD approves → final status (hod_approved)
+        ↓
+Points awarded → visible in TPO dashboard
 ```
