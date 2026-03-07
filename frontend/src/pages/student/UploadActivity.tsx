@@ -93,7 +93,7 @@ const UploadActivity = () => {
                 window.location.href = '/student/portfolio';
             }
         } catch (error: any) {
-            toast.error(error.response?.data?.error || "Upload failed");
+            toast.error(error.error || "Upload failed");
         } finally {
             setSubmitting(false);
         }
@@ -123,7 +123,7 @@ const UploadActivity = () => {
                 }, 2000);
             }
         } catch (error: any) {
-            toast.error(error.response?.data?.error || "Upload failed");
+            toast.error(error.error || "Upload failed");
         } finally {
             setSubmitting(false);
         }

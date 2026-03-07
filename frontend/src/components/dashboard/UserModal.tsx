@@ -77,7 +77,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, user, onSuccess 
             onSuccess();
             onClose();
         } catch (error: any) {
-            toast.error(error.response?.data?.error || "Operation failed");
+            toast.error(error.error || "Operation failed");
         } finally {
             setLoading(false);
         }

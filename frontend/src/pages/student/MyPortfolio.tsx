@@ -205,7 +205,7 @@ const MyPortfolio = () => {
             toast.success(`Deleted ${activity.title}`);
             fetchData();
         } catch (error: any) {
-            toast.error(error.response?.data?.error || "Deletion failed");
+            toast.error(error.error || "Deletion failed");
         }
     };
 
@@ -223,7 +223,7 @@ const MyPortfolio = () => {
                 fetchData();
             }
         } catch (error: any) {
-            toast.error(error.response?.data?.error || error.error || "Upload failed");
+            toast.error(error.error || "Upload failed");
         } finally {
             setUploadingId(null);
         }

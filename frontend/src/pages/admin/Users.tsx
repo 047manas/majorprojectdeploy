@@ -75,7 +75,7 @@ const Users = () => {
             toast.success("User deleted successfully.");
         } catch (error: any) {
             console.error("Deletion failed", error);
-            toast.error(error.response?.data?.error || "Failed to delete user.");
+            toast.error(error.error || "Failed to delete user.");
         }
     };
 

@@ -92,7 +92,7 @@ const VerificationQueue = () => {
             const response = await api.get(`/faculty/review/${activity.id}`);
             setReviewData(response.data);
         } catch (error: any) {
-            toast.error(error.response?.data?.error || "Failed to load review details");
+            toast.error(error.error || "Failed to load review details");
             setReviewOpen(false);
         } finally {
             setReviewLoading(false);

@@ -136,7 +136,7 @@ const Activities = () => {
             toast.success("Activity type deleted");
         } catch (error: any) {
             console.error("Failed to delete activity type", error);
-            toast.error(error.response?.data?.error || "Failed to delete activity type");
+            toast.error(error.error || "Failed to delete activity type");
         }
     };
 
@@ -153,7 +153,7 @@ const Activities = () => {
             fetchData();
             toast.success("Activity type saved successfully");
         } catch (error: any) {
-            toast.error(error.response?.data?.error || "Failed to save activity type");
+            toast.error(error.error || "Failed to save activity type");
         } finally {
             setSubmitting(false);
         }

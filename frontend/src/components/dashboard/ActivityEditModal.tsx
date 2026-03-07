@@ -106,7 +106,7 @@ const ActivityEditModal: React.FC<ActivityEditModalProps> = ({ isOpen, onClose, 
             onSuccess();
             onClose();
         } catch (error: any) {
-            toast.error(error.response?.data?.error || "Update failed");
+            toast.error(error.error || "Update failed");
         } finally {
             setLoading(false);
         }

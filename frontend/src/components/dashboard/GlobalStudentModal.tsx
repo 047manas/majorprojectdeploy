@@ -72,7 +72,7 @@ const GlobalStudentModal: React.FC<GlobalStudentModalProps> = ({ isOpen, onClose
             queryClient.invalidateQueries({ queryKey: ['kpi-summary'] });
             toast.success("Activity deleted.");
         } catch (error: any) {
-            toast.error(error.response?.data?.error || "Deletion failed");
+            toast.error(error.error || "Deletion failed");
         }
     };
 
