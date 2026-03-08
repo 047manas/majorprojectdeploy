@@ -25,7 +25,8 @@ export const useKPIs = (filters: AnalyticsFilters) => {
             const { data } = await api.get('/analytics/kpis', { params: filters });
             return data.data;
         },
-        staleTime: 5 * 60 * 1000,
+        staleTime: 30 * 1000,
+        refetchInterval: 30 * 1000,
     });
 };
 
@@ -37,7 +38,8 @@ export const useEventDistribution = (filters: AnalyticsFilters) => {
             const { data } = await api.get('/analytics/distribution', { params: filters });
             return data.data;
         },
-        staleTime: 5 * 60 * 1000,
+        staleTime: 30 * 1000,
+        refetchInterval: 30 * 1000,
     });
 };
 
@@ -49,7 +51,8 @@ export const useDeptParticipation = (filters: AnalyticsFilters) => {
             const { data } = await api.get('/analytics/department-participation', { params: filters });
             return data.data;
         },
-        staleTime: 5 * 60 * 1000,
+        staleTime: 30 * 1000,
+        refetchInterval: 30 * 1000,
     });
 };
 
@@ -61,7 +64,8 @@ export const useYearlyTrend = (filters: AnalyticsFilters) => {
             const { data } = await api.get('/analytics/yearly-trend', { params: filters });
             return data.data;
         },
-        staleTime: 5 * 60 * 1000,
+        staleTime: 30 * 1000,
+        refetchInterval: 30 * 1000,
     });
 };
 
@@ -85,6 +89,7 @@ export const useAdminInsights = (filters: AnalyticsFilters) => {
             const { data } = await api.get('/analytics/insights', { params: filters });
             return data.data;
         },
-        staleTime: 5 * 60 * 1000,
+        staleTime: 30 * 1000,
+        refetchInterval: 30 * 1000,
     });
 };

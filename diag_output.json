@@ -1,0 +1,26 @@
+{
+    "hods": [
+        {
+            "id": 3,
+            "name": "Prof. HOD CSE",
+            "dept": "CSE",
+            "inst_id": "FAC_HOD_01"
+        },
+        {
+            "id": 42,
+            "name": "Del HOD",
+            "dept": "MECH",
+            "inst_id": "TH001"
+        }
+    ],
+    "pending_activities": [
+        {
+            "id": 116,
+            "title": "ALL INDIA ROBOTICS WORKSHOP",
+            "status": "faculty_verified",
+            "student_dept": "MECH",
+            "reviewer_id": 4,
+            "uploader_id": 4
+        }
+    ]
+}

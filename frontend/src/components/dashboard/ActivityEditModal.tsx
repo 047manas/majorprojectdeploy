@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { Label } from '@/components/ui/label';
 import { AuditTimeline } from '@/components/dashboard/AuditTimeline';
+import { Loader2 } from 'lucide-react';
 import api from '@/services/api';
 
 interface Activity {
@@ -118,68 +119,109 @@ const ActivityEditModal: React.FC<ActivityEditModalProps> = ({ isOpen, onClose, 
                 <DialogHeader>
                     <DialogTitle>Edit Activity</DialogTitle>
                 </DialogHeader>
-                <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="title" className="text-right">Title</Label>
-                        <Input id="title" value={formData.title} onChange={handleChange} className="col-span-3" required />
-                    </div>
-
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="issuer_name" className="text-right">Issuer</Label>
-                        <Input id="issuer_name" value={formData.issuer_name} onChange={handleChange} className="col-span-3" required />
-                    </div>
-
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="organizer" className="text-right">Organizer</Label>
-                        <Input id="organizer" value={formData.organizer} onChange={handleChange} className="col-span-3" />
-                    </div>
-
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="activity_type_id" className="text-right">Type</Label>
-                        <select
-                            id="activity_type_id"
-                            className="col-span-3 flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-950 dark:border-slate-800 dark:bg-slate-950"
-                            value={formData.activity_type_id}
+                <form onSubmit={handleSubmit} className="space-y-5 py-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="title" className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Activity Title</Label>
+                        <Input
+                            id="title"
+                            value={formData.title}
                             onChange={handleChange}
-                        >
-                            <option value="">Select Activity Type</option>
-                            {activityTypes.map(type => (
-                                <option key={type.id} value={type.id}>{type.name}</option>
-                            ))}
-                        </select>
+                            placeholder="e.g. Workshop on Robotics"
+                            className="h-11 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900/50 dark:border-slate-800 focus:ring-2 focus:ring-indigo-500/20"
+                            required
+                        />
                     </div>
 
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="start_date" className="text-right">Start Date</Label>
-                        <Input id="start_date" type="date" value={formData.start_date} onChange={handleChange} className="col-span-3" required />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="issuer_name" className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Issue By</Label>
+                            <Input
+                                id="issuer_name"
+                                value={formData.issuer_name}
+                                onChange={handleChange}
+                                placeholder="e.g. Google, IEEE"
+                                className="h-11 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900/50 dark:border-slate-800"
+                                required
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="activity_type_id" className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Organizer Type</Label>
+                            <select
+                                id="activity_type_id"
+                                className="flex h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/20 dark:border-slate-800 dark:bg-slate-900/50"
+                                value={formData.activity_type_id}
+                                onChange={handleChange}
+                            >
+                                <option value="">Select Category</option>
+                                {activityTypes.map(type => (
+                                    <option key={type.id} value={type.id}>{type.name}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="end_date" className="text-right">End Date</Label>
-                        <Input id="end_date" type="date" value={formData.end_date} onChange={handleChange} className="col-span-3" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="start_date" className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Start Date</Label>
+                            <Input
+                                id="start_date"
+                                type="date"
+                                value={formData.start_date}
+                                onChange={handleChange}
+                                className="h-11 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900/50 dark:border-slate-800"
+                                required
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="end_date" className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">End Date</Label>
+                            <Input
+                                id="end_date"
+                                type="date"
+                                value={formData.end_date}
+                                onChange={handleChange}
+                                className="h-11 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900/50 dark:border-slate-800"
+                            />
+                        </div>
                     </div>
 
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="certificate" className="text-right">Certificate</Label>
-                        <div className="col-span-3">
-                            <Input id="certificate" type="file" onChange={handleFileChange} accept=".pdf,.png,.jpg,.jpeg" />
-                            <p className="text-[0.7rem] text-slate-500 mt-1">Leave blank to keep existing file</p>
+                    <div className="space-y-2">
+                        <Label htmlFor="certificate" className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Update Certificate</Label>
+                        <div className="p-4 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30">
+                            <Input
+                                id="certificate"
+                                type="file"
+                                onChange={handleFileChange}
+                                accept=".pdf,.png,.jpg,.jpeg"
+                                className="cursor-pointer file:mr-4 file:py-1 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                            />
+                            <p className="text-[0.65rem] text-slate-400 mt-2 italic flex items-center gap-1">
+                                <span className="w-1 h-1 rounded-full bg-slate-400"></span>
+                                Leave blank to keep existing certificate file
+                            </p>
                         </div>
                     </div>
 
                     {/* Timeline UI */}
                     {activity?.audit_trail && activity.audit_trail.length > 0 && (
-                        <div className="col-span-4 mt-2 p-4 bg-slate-50/50 dark:bg-slate-900/50 rounded-lg border border-slate-100 dark:border-slate-800">
-                            <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Activity Timeline</h4>
-                            <div className="max-h-[200px] overflow-y-auto pr-2">
+                        <div className="mt-4 p-5 bg-gradient-to-br from-slate-50 to-indigo-50/30 dark:from-slate-900/50 dark:to-indigo-900/10 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-inner">
+                            <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200 mb-6 flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                                Activity Timeline
+                            </h4>
+                            <div className="max-h-[250px] overflow-y-auto pr-2 custom-scrollbar">
                                 <AuditTimeline events={activity.audit_trail} />
                             </div>
                         </div>
                     )}
 
-                    <DialogFooter>
-                        <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-                        <Button type="submit" disabled={loading}>{loading ? 'Saving...' : 'Save Changes'}</Button>
+                    <DialogFooter className="pt-4 gap-3">
+                        <Button type="button" variant="outline" onClick={onClose} className="h-11 px-6 rounded-xl border-slate-200 hover:bg-slate-50">Cancel</Button>
+                        <Button type="submit" disabled={loading} className="h-11 px-8 rounded-xl bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white shadow-lg shadow-indigo-500/25 border-none transition-all hover:scale-[1.02] active:scale-[0.98]">
+                            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                            {loading ? 'Saving...' : 'Save Changes'}
+                        </Button>
                     </DialogFooter>
                 </form>
             </DialogContent>

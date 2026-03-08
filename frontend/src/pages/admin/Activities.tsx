@@ -163,12 +163,12 @@ const Activities = () => {
         () => [
             {
                 accessorKey: 'name',
-                header: 'Activity Name',
+                header: 'Activity Type',
                 size: 250,
             },
             {
                 accessorKey: 'description',
-                header: 'Description',
+                header: 'Activity Title',
                 meta: {
                     nowrap: false,
                 },
@@ -290,7 +290,7 @@ const Activities = () => {
                         </DialogHeader>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div className="space-y-2">
-                                <Label htmlFor="name">Activity Name</Label>
+                                <Label htmlFor="name">Activity Type</Label>
                                 <Input
                                     id="name"
                                     value={formData.name}
@@ -299,7 +299,7 @@ const Activities = () => {
                                 />
                             </div>
                             <div className="space-y-2">
-                                <Label htmlFor="desc">Description</Label>
+                                <Label htmlFor="desc">Activity Title</Label>
                                 <Input
                                     id="desc"
                                     value={formData.description}

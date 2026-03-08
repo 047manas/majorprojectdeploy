@@ -11,11 +11,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '@/services/api';
 import { DataTable } from './DataTable';
 import { ColumnDef } from '@tanstack/react-table';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, ExternalLink } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { studentColumns } from './StudentListColumns';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 interface DrilldownModalProps {
     isOpen: boolean;
@@ -60,6 +61,7 @@ const eventColumns: ColumnDef<any>[] = [
 const DrilldownModal: React.FC<DrilldownModalProps> = ({ isOpen, onClose, category, filters }) => {
     const { user } = useAuth();
     const queryClient = useQueryClient();
+    const navigate = useNavigate();
     const [selectedEvent, setSelectedEvent] = useState<any | null>(null);
 
     // Fetch Events for Category
@@ -82,7 +84,6 @@ const DrilldownModal: React.FC<DrilldownModalProps> = ({ isOpen, onClose, catego
         enabled: !!category && !selectedEvent,
     });
 
-    // Fetch Students for Event
     const { data: students, isLoading: studentsLoading } = useQuery({
         queryKey: ['students', selectedEvent?.id],
         queryFn: async () => {
@@ -92,6 +93,20 @@ const DrilldownModal: React.FC<DrilldownModalProps> = ({ isOpen, onClose, catego
         },
         enabled: !!selectedEvent,
     });
+
+    // Can current user manage this specific event instance?
+    const canManageEvent = selectedEvent && students && students.length > 0 && (
+        user?.role === 'admin' ||
+        String(students[0].attendance_uploaded_by) === String(user?.id)
+    );
+
+    const handleManageEvent = () => {
+        if (!selectedEvent) return;
+        // Navigate to attendance upload with prefill
+        const date = selectedEvent.start_date?.split('T')[0] || '';
+        navigate(`/faculty/attendance?title=${encodeURIComponent(selectedEvent.title)}&date=${date}`);
+        onClose();
+    };
 
     const handleBack = () => {
         setSelectedEvent(null);
@@ -141,13 +156,27 @@ const DrilldownModal: React.FC<DrilldownModalProps> = ({ isOpen, onClose, catego
                             </>
                         )}
                     </div>
-                    <DialogTitle className="text-xl font-bold flex items-center gap-2">
-                        {selectedEvent && (
-                            <Button variant="ghost" size="icon" onClick={handleBack} className="h-8 w-8 -ml-2 mr-1">
-                                <ArrowLeft className="h-4 w-4" />
+                    <DialogTitle className="text-xl font-bold flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                            {selectedEvent && (
+                                <Button variant="ghost" size="icon" onClick={handleBack} className="h-8 w-8 -ml-2 mr-1">
+                                    <ArrowLeft className="h-4 w-4" />
+                                </Button>
+                            )}
+                            {selectedEvent ? 'Student Participants' : (category === 'ALL_EVENTS' ? 'All Events' : `${category} Events`)}
+                        </div>
+
+                        {canManageEvent && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 gap-1.5 border-indigo-200 text-indigo-700 bg-indigo-50/50 hover:bg-indigo-100 dark:border-indigo-900 dark:text-indigo-400 dark:bg-indigo-950/30"
+                                onClick={handleManageEvent}
+                            >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                                Manage Event
                             </Button>
                         )}
-                        {selectedEvent ? 'Student Participants' : (category === 'ALL_EVENTS' ? 'All Events' : `${category} Events`)}
                     </DialogTitle>
                     <DialogDescription>
                         {selectedEvent

@@ -292,7 +292,8 @@ class AnalyticsService:
         if current_user.role == 'faculty':
             conditions = []
             
-            # 1. HOD: Filter by User.department
+            # 1. HOD: Filter by User.department (Students in their dept)
+            # OR Attendance activities in their dept (via uploader)
             if current_user.position and current_user.position.lower() == 'hod':
                 if current_user.department:
                     conditions.append(User.department == current_user.department)
@@ -302,6 +303,9 @@ class AnalyticsService:
             if managed_activities:
                 managed_ids = [a.id for a in managed_activities]
                 conditions.append(StudentActivity.activity_type_id.in_(managed_ids))
+            
+            # 3. Attendance Uploader: If they uploaded attendance, it's "their" event
+            conditions.append(StudentActivity.attendance_uploaded_by == current_user.id)
                 
             if conditions:
                 return query.filter(or_(*conditions))
@@ -417,11 +421,12 @@ class AnalyticsService:
         query = query.filter(User.is_deleted == False)
         
         # Exclude orphaned activities (Parent Type deleted and no custom category)
-        # This cleans up data from hard-deleted ActivityTypes
+        # However, allow activities created via Attendance Upload even if they have no category yet.
         query = query.filter(
             or_(
                 StudentActivity.activity_type_id.isnot(None), 
-                func.coalesce(StudentActivity.custom_category, '') != ''
+                func.coalesce(StudentActivity.custom_category, '') != '',
+                StudentActivity.is_attendance_uploaded == True
             )
         )
         
@@ -681,7 +686,8 @@ class AnalyticsService:
             "date": str(item.start_date or item.created_at.date()),
             "verification_mode": item.verification_mode or 'N/A',
             "faculty_incharge_id": item.activity_type.faculty_incharge_id if item.activity_type else None,
-            "activity_type_id": item.activity_type_id
+            "activity_type_id": item.activity_type_id,
+            "attendance_uploaded_by": item.attendance_uploaded_by
         }
         if include_certificate:
             cert_url = None
@@ -746,16 +752,15 @@ class AnalyticsService:
         identity_expr = AnalyticsService._get_event_identity_expr()
         
         q = base_q.with_entities(
-            # Aggregate non-grouped columns to satisfy SQL Grouping rules
             func.max(func.coalesce(ActivityType.name, StudentActivity.custom_category)).label('category'),
             func.max(case((ActivityType.id.isnot(None), literal('')), else_=func.lower(func.trim(StudentActivity.title)))).label('title_key'),
             func.max(StudentActivity.title).label('raw_title'),
-            func.max(event_date_expr).label('date'), # Date is part of identity, so max(date) == date
-            
+            func.max(event_date_expr).label('date'),
             func.count(StudentActivity.id).label('participations'),
             func.count(distinct(StudentActivity.student_id)).label('unique_students'),
-             func.sum(case((or_(StudentActivity.status == 'faculty_verified', StudentActivity.status == 'auto_verified', StudentActivity.status == 'hod_approved'), 1), else_=0)).label('verified_count'),
-             func.sum(case((StudentActivity.status == 'pending', 1), else_=0)).label('pending_count')
+            func.sum(case((or_(StudentActivity.status == 'faculty_verified', StudentActivity.status == 'auto_verified', StudentActivity.status == 'hod_approved'), 1), else_=0)).label('verified_count'),
+            func.sum(case((StudentActivity.status == 'pending', 1), else_=0)).label('pending_count'),
+            identity_expr.label('event_identity')
         ).group_by(
             identity_expr
         )
@@ -775,7 +780,8 @@ class AnalyticsService:
                 "Unique Students": r.unique_students,
                 "Verified Count": int(r.verified_count or 0),
                 "Pending Count": int(r.pending_count or 0),
-                "Engagement %": f"{round(r.unique_students/r.participations*100, 1) if r.participations else 0}%"
+                "Engagement %": f"{round(r.unique_students/r.participations*100, 1) if r.participations else 0}%",
+                "event_identity": r.event_identity
             })
         return data
 
@@ -1191,7 +1197,7 @@ class AnalyticsService:
         Transforms Excel-style keys to API-friendly keys for frontend."""
         raw = AnalyticsService._get_event_summary_list(filters)
         return [{
-            "id": f"{item.get('Event Category', 'Unknown')}-{item.get('Event Title', 'Unknown')}",
+            "id": item.get("event_identity", "Unknown"),
             "title": item.get("Event Title", "Unknown"),
             "category": item.get("Event Category", "Unknown"),
             "start_date": str(item.get("Event Date")) if item.get("Event Date") else None,

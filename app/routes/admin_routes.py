@@ -218,6 +218,20 @@ def activity_types():
         new_at = ActivityType(name=name, faculty_incharge_id=faculty_id, description=description, default_campus_type=default_campus_type, weightage=weightage)
         db.session.add(new_at)
         db.session.commit()
+        
+        # Notify assigned faculty ONLY for in_campus activities
+        if faculty_id and default_campus_type == 'in_campus':
+            msg = f"You have been assigned as In-Charge for a new In-Campus event: {name}. Please upload attendance."
+            notif = Notification(
+                user_id=faculty_id,
+                title="New In-Campus Event Assigned",
+                message=msg,
+                type='info',
+                action_url=f"/faculty/attendance?activity_type_id={new_at.id}"
+            )
+            db.session.add(notif)
+            db.session.commit()
+            
         return jsonify({'success': True, 'message': 'Activity Type created.'})
 
 @admin_bp.route('/activity-types/<int:at_id>/edit', methods=['GET', 'POST'])

@@ -9,6 +9,7 @@ import io
 import json
 from datetime import datetime
 from app.utils.audit import add_audit_event
+import pandas as pd
 
 faculty_bp = Blueprint('faculty', __name__)
 
@@ -20,10 +21,20 @@ def dashboard():
     if current_user.role == 'faculty':
         if current_user.position == 'hod' and current_user.department:
             from sqlalchemy import or_, and_
-            query = query.outerjoin(User, StudentActivity.student_id == User.id).filter(
+            query = query.outerjoin(User, StudentActivity.student_id == User.id)
+            
+            # Join with uploader to check uploader's department
+            from app.models import User as Uploader
+            query = query.outerjoin(Uploader, StudentActivity.attendance_uploaded_by == Uploader.id)
+            
+            query = query.filter(
                 or_(
+                    # Case 1: Specifically assigned to this HOD
                     and_(StudentActivity.status == 'pending', StudentActivity.assigned_reviewer_id == current_user.id),
-                    and_(StudentActivity.status == 'faculty_verified', User.department == current_user.department)
+                    # Case 2: Not assigned, but student is in HOD's department
+                    and_(StudentActivity.status == 'pending', StudentActivity.assigned_reviewer_id == None, User.department == current_user.department),
+                    # Case 3: Not assigned, but EVENT was organized by HOD's dept
+                    and_(StudentActivity.status == 'pending', StudentActivity.assigned_reviewer_id == None, Uploader.department == current_user.department)
                 )
             )
         else:
@@ -59,10 +70,20 @@ def get_pending_count():
     if current_user.role == 'faculty':
         if current_user.position == 'hod' and current_user.department:
             from sqlalchemy import or_, and_
-            query = query.outerjoin(User, StudentActivity.student_id == User.id).filter(
+            query = query.outerjoin(User, StudentActivity.student_id == User.id)
+
+            # Join with uploader to check uploader's department
+            from app.models import User as Uploader
+            query = query.outerjoin(Uploader, StudentActivity.attendance_uploaded_by == Uploader.id)
+
+            query = query.filter(
                 or_(
+                    # Case 1: Specifically assigned to this HOD
                     and_(StudentActivity.status == 'pending', StudentActivity.assigned_reviewer_id == current_user.id),
-                    and_(StudentActivity.status == 'faculty_verified', User.department == current_user.department)
+                    # Case 2: Not assigned, but student is in HOD's department
+                    and_(StudentActivity.status == 'pending', StudentActivity.assigned_reviewer_id == None, User.department == current_user.department),
+                    # Case 3: Not assigned, but EVENT was organized by HOD's dept
+                    and_(StudentActivity.status == 'pending', StudentActivity.assigned_reviewer_id == None, Uploader.department == current_user.department)
                 )
             )
         else:
@@ -112,6 +133,8 @@ def review_request(act_id):
         'end_date': str(activity.end_date) if activity.end_date else None,
         'status': activity.status,
         'verification_mode': activity.verification_mode,
+        'attendance_verified_by': activity.attendance_uploader.full_name if activity.attendance_uploader else None,
+        'is_attendance_uploaded': activity.is_attendance_uploaded,
         'certificate_url': cert_url,
         'certificate_file': activity.certificate_file,
         'created_at': activity.created_at.isoformat(),
@@ -123,38 +146,45 @@ def review_request(act_id):
 def approve_request(act_id):
     activity = StudentActivity.query.get_or_404(act_id)
     
-    is_hod = False
     if current_user.role == 'faculty':
-        is_hod = (current_user.position == 'hod' and activity.student.department == current_user.department)
         is_assigned = (activity.assigned_reviewer_id == current_user.id)
+        is_hod = (current_user.position == 'hod' and (
+            activity.student.department == current_user.department or 
+            (activity.attendance_uploader and activity.attendance_uploader.department == current_user.department)
+        ))
         
-        if not (is_assigned or is_hod):
-             return jsonify({'error': "You are not authorized to approve this activity."}), 403
+        if activity.assigned_reviewer_id is not None:
+            # If assigned, ONLY the assigned incharge can approve
+            if not is_assigned:
+                return jsonify({'error': "Only the assigned Activity In-Charge can verify this activity."}), 403
+        else:
+            # If unassigned, ONLY the HOD can verify
+            if not is_hod:
+                return jsonify({'error': "Unauthorized. This unassigned activity must be verified by the HOD."}), 403
 
     data = request.get_json()
     comment = data.get('faculty_comment', '')
     
-    if is_hod or current_user.role == 'admin':
+    # ANY authorized approval (Faculty, HOD, Admin) is now FINAL
+    if current_user.role == 'faculty' and current_user.position == 'hod':
         activity.status = 'hod_approved'
-        activity.faculty_id = current_user.id
-        activity.faculty_comment = comment
-        
-        if not activity.verification_token:
-            activity.verification_token = secrets.token_urlsafe(16)
-        
-        if activity.certificate_hash:
-             hashstore.store_approved_hash(
-                file_hash=activity.certificate_hash,
-                roll_no=activity.student.institution_id,
-                filename=activity.certificate_file,
-                request_id=activity.id,
-                faculty_comment=comment
-            )
     else:
-        # Regular Faculty
         activity.status = 'faculty_verified'
-        activity.faculty_id = current_user.id
-        activity.faculty_comment = comment
+        
+    activity.faculty_id = current_user.id
+    activity.faculty_comment = comment
+    
+    if not activity.verification_token:
+        activity.verification_token = secrets.token_urlsafe(16)
+    
+    if activity.certificate_hash:
+            hashstore.store_approved_hash(
+            file_hash=activity.certificate_hash,
+            roll_no=activity.student.institution_id,
+            filename=activity.certificate_file,
+            request_id=activity.id,
+            faculty_comment=comment
+        )
 
     db.session.commit()
 
@@ -184,11 +214,20 @@ def reject_request(act_id):
     
     # Access Control
     if current_user.role == 'faculty':
-        is_hod = (current_user.position == 'hod' and activity.student.department == current_user.department)
         is_assigned = (activity.assigned_reviewer_id == current_user.id)
+        is_hod = (current_user.position == 'hod' and (
+            activity.student.department == current_user.department or 
+            (activity.attendance_uploader and activity.attendance_uploader.department == current_user.department)
+        ))
         
-        if not (is_assigned or is_hod):
-             return jsonify({'error': "You are not authorized to reject this activity."}), 403
+        if activity.assigned_reviewer_id is not None:
+            # If assigned, ONLY the assigned incharge can reject
+            if not is_assigned:
+                return jsonify({'error': "Only the assigned Activity In-Charge can reject this activity."}), 403
+        else:
+            # If unassigned, ONLY the HOD can reject
+            if not is_hod:
+                return jsonify({'error': "Unauthorized. This unassigned activity must be handled by the HOD."}), 403
 
     data = request.get_json()
     comment = data.get('faculty_comment', '')
@@ -237,11 +276,12 @@ def upload_attendance():
         return jsonify({'error': 'Start date is required.'}), 400
 
     if 'file' not in request.files:
-        return jsonify({'error': 'No CSV file uploaded.'}), 400
+        return jsonify({'error': 'No file uploaded.'}), 400
 
     file = request.files['file']
-    if file.filename == '' or not file.filename.lower().endswith('.csv'):
-        return jsonify({'error': 'Please upload a valid CSV file.'}), 400
+    filename = file.filename.lower()
+    if not (filename.endswith('.csv') or filename.endswith('.xlsx') or filename.endswith('.xls')):
+        return jsonify({'error': 'Please upload a valid Excel or CSV file.'}), 400
 
     # Parse dates
     try:
@@ -263,44 +303,52 @@ def upload_attendance():
         except (ValueError, TypeError):
             pass
 
-    # Parse CSV - look for institution_id / roll_number column
+    # Parse Excel / CSV using pandas
     try:
-        content = file.stream.read().decode('utf-8-sig')
-        reader = csv.DictReader(io.StringIO(content))
+        # Read the file without assuming a header row, so we don't accidentally skip the first roll number
+        if filename.endswith('.csv'):
+            df = pd.read_csv(file.stream, header=None, dtype=str)
+        else:
+            file_bytes = file.read()
+            df = pd.read_excel(io.BytesIO(file_bytes), header=None, dtype=str)
     except Exception as e:
-        return jsonify({'error': f'Failed to parse CSV: {str(e)}'}), 400
+        return jsonify({'error': f'Failed to parse file: {str(e)}'}), 400
 
-    # Find the column containing roll numbers
-    if not reader.fieldnames:
-        return jsonify({'error': 'CSV file appears to be empty.'}), 400
+    if df.empty:
+        return jsonify({'error': 'File appears to be empty.'}), 400
 
-    roll_col = None
-    for col in reader.fieldnames:
-        col_lower = col.strip().lower().replace(' ', '_')
-        if col_lower in ('institution_id', 'roll_number', 'roll_no', 'rollno', 'roll', 'student_id', 'id'):
-            roll_col = col
-            break
+    # Extract Roll Numbers
+    # We assume the first column contains the IDs. Drop any empty/null cells.
+    roll_numbers = []
+    first_col = df.iloc[:, 0].dropna()
+    
+    for val in first_col:
+        str_val = str(val).strip()
+        if not str_val:
+            continue
+        
+        # Ignore common header names in case the user did include a header
+        col_lower = str_val.lower().replace(' ', '_')
+        if col_lower in ('institution_id', 'roll_number', 'roll_no', 'rollno', 'roll', 'student_id', 'id', 'course', 'name'):
+            continue
+            
+        roll_numbers.append(str_val)
 
-    if not roll_col:
-        return jsonify({'error': f'CSV must have a column named one of: institution_id, roll_number, roll_no, roll, student_id. Found: {", ".join(reader.fieldnames)}'}), 400
+    if not roll_numbers:
+        return jsonify({'error': 'Could not find any roll numbers in the first column.'}), 400
 
     # Process each row
     created = 0
     not_found = []
     already_exists = []
 
-    for row in reader:
-        roll = row.get(roll_col, '').strip()
-        if not roll:
-            continue
-
-        # Look up the student
+    # First pass: Validate all roll numbers
+    for roll in roll_numbers:
         student = User.query.filter_by(institution_id=roll, role='student').first()
         if not student:
             not_found.append(roll)
             continue
-
-        # Check if an activity with the same title + start_date already exists for this student
+        
         existing = StudentActivity.query.filter_by(
             student_id=student.id,
             title=title,
@@ -311,6 +359,21 @@ def upload_attendance():
             already_exists.append(roll)
             continue
 
+    if not_found:
+        return jsonify({
+            'error': f"The following roll numbers are not registered students in the system: {', '.join(not_found)}. Please check the list and try again.",
+            'not_found': not_found
+        }), 400
+
+    if already_exists:
+        return jsonify({
+            'error': f"The following roll numbers are already registered for this event: {', '.join(already_exists)}.",
+            'already_exists': already_exists
+        }), 400
+
+    # Second pass: Create the records
+    for roll in roll_numbers:
+        student = User.query.filter_by(institution_id=roll, role='student').first()
         # Create the pending_upload record
         new_activity = StudentActivity(
             student_id=student.id,
@@ -326,6 +389,7 @@ def upload_attendance():
             attendance_uploaded_by=current_user.id,
         )
         db.session.add(new_activity)
+        db.session.flush() # Flush to assign new_activity.id
 
         # Create notification for the student
         notif = Notification(
@@ -449,15 +513,33 @@ def get_event_students(title, start_date):
 
     activities = query.join(User, StudentActivity.student_id == User.id).order_by(User.institution_id).all()
 
+    # Serialize the student records
     data = [{
         'activity_id': a.id,
         'student_name': a.student.full_name,
         'student_roll': a.student.institution_id,
         'student_department': a.student.department,
         'status': a.status,
+        'certificate_file': a.certificate_file
     } for a in activities]
 
-    return jsonify({'students': data, 'can_edit': can_edit})
+    # Get metadata from the first record if it exists
+    metadata = {}
+    if activities:
+        a = activities[0]
+        metadata = {
+            'title': a.title,
+            'issuer_name': a.issuer_name,
+            'start_date': a.start_date.isoformat(),
+            'end_date': a.end_date.isoformat() if a.end_date else None,
+            'activity_type_id': a.activity_type_id
+        }
+
+    return jsonify({
+        'students': data, 
+        'can_edit': can_edit,
+        'metadata': metadata
+    })
 
 
 @faculty_bp.route('/event/add-student', methods=['POST'])
@@ -570,4 +652,348 @@ def remove_student_from_event(activity_id):
     db.session.commit()
 
     return jsonify({'success': True, 'message': 'Student removed from event roster.'})
+
+@faculty_bp.route('/delete-event', methods=['POST'])
+@role_required('faculty', 'admin')
+def delete_event():
+    """
+    Bulk delete all student records for a specific event.
+    Usually used to clear a mistake before re-uploading.
+    """
+    data = request.get_json() or {}
+    title = data.get('title')
+    start_date_str = data.get('start_date')
+
+    if not title or not start_date_str:
+        return jsonify({'error': 'Title and start_date are required.'}), 400
+
+    try:
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        # Try ISO format if simple date fails
+        try:
+            start_date = datetime.fromisoformat(start_date_str.replace('Z', '')).date()
+        except ValueError:
+            return jsonify({'error': 'Invalid date format.'}), 400
+
+    # Find all activities for this event uploaded by this faculty (or allow admin)
+    query = StudentActivity.query.filter_by(
+        title=title,
+        start_date=start_date,
+        is_deleted=False
+    )
+    
+    if current_user.role == 'faculty':
+        query = query.filter_by(attendance_uploaded_by=current_user.id)
+
+    activities = query.all()
+    if not activities:
+        return jsonify({'error': 'No matching event records found.'}), 404
+
+    deleted_count = 0
+    migrated_count = 0
+    notified_student_ids = set()
+    event_incharge_id = activities[0].attendance_uploaded_by if activities else None
+
+    for act in activities:
+        if act.status == 'pending_upload':
+            act.is_deleted = True
+            act.deletion_reason = f"Event removed by {current_user.full_name}"
+            deleted_count += 1
+            
+            # Notify of removal
+            if act.student_id not in notified_student_ids:
+                notif = Notification(
+                    user_id=act.student_id,
+                    title='Event Removed',
+                    message=f'The event "{title}" has been removed by {current_user.full_name}. Asscoiated pending records have been deleted.',
+                    type='warning',
+                    action_url='/student/portfolio'
+                )
+                db.session.add(notif)
+                notified_student_ids.add(act.student_id)
+        else:
+            # Student already uploaded a certificate! Do NOT delete.
+            # Convert to a standard off-campus activity and re-route to HOD
+            act.campus_type = 'off_campus'
+            act.is_attendance_uploaded = False
+            act.attendance_uploaded_by = None
+            
+            # Find the HOD for the student's department to take over review
+            hod = User.query.filter_by(
+                department=act.student.department, 
+                role='faculty',
+                position='hod'
+            ).first()
+            
+            old_reviewer = act.assigned_reviewer_id
+            act.assigned_reviewer_id = hod.id if hod else None
+            
+            if act.status == 'faculty_verified' and old_reviewer != act.assigned_reviewer_id:
+                # If it was already verified by the current incharge, keep it verified.
+                # If it's still pending, it just shifts to the HOD's queue.
+                pass
+                
+            migrated_count += 1
+                
+            # Notify of migration
+            if act.student_id not in notified_student_ids:
+                notif = Notification(
+                    user_id=act.student_id,
+                    title='Event Removed (Certificate Preserved)',
+                    message=f'The in-campus event "{title}" was removed by {current_user.full_name}. However, because you already uploaded your certificate, your record has been preserved and converted to a regular off-campus activity for your HOD to verify.',
+                    type='info',
+                    action_url='/student/portfolio'
+                )
+                db.session.add(notif)
+                notified_student_ids.add(act.student_id)
+
+    # Notify incharge if someone else deleted their event
+    if event_incharge_id and event_incharge_id != current_user.id:
+        incharge_notif = Notification(
+            user_id=event_incharge_id,
+            title='Your Event Was Deleted',
+            message=f'Your event "{title}" has been deleted by {current_user.full_name}. {deleted_count} pending student records were removed, and {migrated_count} submitted certificates were converted to off-campus records.',
+            type='warning',
+            action_url='/faculty/attendance'
+        )
+        db.session.add(incharge_notif)
+
+    db.session.commit()
+    return jsonify({
+        'success': True,
+        'message': f'Deleted {deleted_count} pending records. Preserved {migrated_count} submitted certificates. {len(notified_student_ids)} students notified.'
+    })
+
+@faculty_bp.route('/event/bulk-approve', methods=['POST'])
+@role_required('faculty', 'admin')
+def bulk_approve_event():
+    """Approve all students in an event roster who have 'pending' status.
+    Only the event uploader or admin can do this.
+    """
+    data = request.get_json()
+    title = data.get('title')
+    start_date_str = data.get('start_date')
+
+    if not title or not start_date_str:
+        return jsonify({'error': 'Title and start_date are required.'}), 400
+
+    try:
+        from datetime import datetime
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Invalid date format.'}), 400
+
+    # Find pending activities for this event
+    query = StudentActivity.query.filter_by(
+        title=title,
+        start_date=start_date,
+        status='pending',
+        is_deleted=False
+    )
+
+    # Scoping: Only uploader or admin
+    if current_user.role == 'faculty':
+        # Check if they are the uploader of at least one record in this event
+        sample = StudentActivity.query.filter_by(title=title, start_date=start_date).first()
+        if not sample or sample.attendance_uploaded_by != current_user.id:
+            return jsonify({'error': 'Only the event in-charge can bulk approve.'}), 403
+        
+        query = query.filter_by(attendance_uploaded_by=current_user.id)
+
+    activities = query.all()
+    count = 0
+    from app.routes.analytics_routes import add_audit_event
+    for activity in activities:
+        activity.status = 'faculty_verified'
+        activity.faculty_id = current_user.id
+        add_audit_event(activity.id, current_user.full_name, "Verified (Bulk)", "Approved via Event Roster Bulk Action")
+        count += 1
+
+    db.session.commit()
+    return jsonify({'success': True, 'message': f'Successfully approved {count} certificates.'})
+
+
+@faculty_bp.route('/event/update-details', methods=['PATCH'])
+@role_required('faculty', 'admin')
+def update_event_details():
+    """Update event details (title, dates, issuer) for all records in a roster.
+    Only the event uploader or admin can do this.
+    """
+    data = request.get_json()
+    old_title = data.get('old_title')
+    old_start_date_str = data.get('old_start_date')
+    
+    new_title = data.get('title')
+    new_issuer_name = data.get('issuer_name')
+    new_start_date_str = data.get('start_date')
+    new_end_date_str = data.get('end_date')
+
+    if not old_title or not old_start_date_str:
+        return jsonify({'error': 'Original Title and start_date are required.'}), 400
+
+    try:
+        from datetime import datetime
+        old_start_date = datetime.strptime(old_start_date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'error': 'Invalid old_start_date format.'}), 400
+
+    # Find activities for this event
+    query = StudentActivity.query.filter_by(
+        title=old_title,
+        start_date=old_start_date,
+        is_deleted=False
+    )
+
+    # Scoping: Only uploader or admin
+    if current_user.role == 'faculty':
+        sample = StudentActivity.query.filter_by(title=old_title, start_date=old_start_date).first()
+        if not sample or sample.attendance_uploaded_by != current_user.id:
+            return jsonify({'error': 'Only the event in-charge can edit details.'}), 403
+        query = query.filter_by(attendance_uploaded_by=current_user.id)
+
+    activities = query.all()
+    if not activities:
+        return jsonify({'error': 'No matching event records found.'}), 404
+
+    # Validate new dates
+    new_start_date = None
+    if new_start_date_str:
+        try:
+            new_start_date = datetime.strptime(new_start_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'error': 'Invalid new start_date format.'}), 400
+
+    new_end_date = None
+    if new_end_date_str:
+        try:
+            new_end_date = datetime.strptime(new_end_date_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass # allow null or ignore invalid end date if not essential
+
+    # Track what changed for notification message
+    changes = []
+    if new_title and new_title != old_title:
+        changes.append(f'title changed to "{new_title}"')
+    if new_issuer_name is not None:
+        changes.append('issuer updated')
+    if new_start_date and str(new_start_date) != str(old_start_date):
+        changes.append('start date updated')
+    if new_end_date:
+        changes.append('end date updated')
+
+    # Update all records
+    for activity in activities:
+        if new_title:
+            activity.title = new_title
+        if new_issuer_name is not None:
+            activity.issuer_name = new_issuer_name
+        if new_start_date:
+            activity.start_date = new_start_date
+        if new_end_date:
+            activity.end_date = new_end_date
+
+    db.session.commit()
+
+    # Notify students about the event detail changes
+    if changes:
+        notified_ids = set()
+        change_summary = ', '.join(changes)
+        for activity in activities:
+            if activity.student_id not in notified_ids:
+                notif = Notification(
+                    user_id=activity.student_id,
+                    title='Event Details Updated',
+                    message=f'The event "{old_title}" has been updated by {current_user.full_name}: {change_summary}.',
+                    type='info',
+                    action_url='/student/portfolio'
+                )
+                db.session.add(notif)
+                notified_ids.add(activity.student_id)
+        db.session.commit()
+
+    return jsonify({
+        'success': True, 
+        'message': f'Successfully updated details for {len(activities)} records.',
+        'updated_event': {
+            'title': new_title or old_title,
+            'start_date': new_start_date_str or old_start_date_str
+        }
+    })
+
+@faculty_bp.route('/notifications', methods=['GET'])
+@role_required('faculty')
+def get_notifications():
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    per_page = min(per_page, 100)  # Cap at 100
+
+    pagination = Notification.query.filter_by(
+        user_id=current_user.id
+    ).order_by(
+        Notification.created_at.desc()
+    ).paginate(page=page, per_page=per_page, error_out=False)
+
+    data = []
+    for n in pagination.items:
+        is_completed = False
+        action_url = n.action_url
+
+        # Check 1: Notification links to a specific activity via action_data
+        if n.action_data:
+            try:
+                action_info = json.loads(n.action_data)
+                activity_id = action_info.get('activity_id')
+                if activity_id:
+                    linked_activity = StudentActivity.query.get(activity_id)
+                    if linked_activity and linked_activity.status != 'pending_upload':
+                        is_completed = True
+                        action_url = None
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        # Check 2: Faculty "event assigned" notification — check if attendance already uploaded
+        if not is_completed and n.action_url and 'activity_type_id=' in str(n.action_url):
+            try:
+                from urllib.parse import urlparse, parse_qs
+                parsed = urlparse(n.action_url)
+                qs = parse_qs(parsed.query)
+                at_id = qs.get('activity_type_id', [None])[0]
+                if at_id:
+                    has_uploads = StudentActivity.query.filter_by(
+                        activity_type_id=int(at_id),
+                        is_attendance_uploaded=True,
+                        is_deleted=False
+                    ).first()
+                    if has_uploads:
+                        is_completed = True
+                        action_url = None
+            except (ValueError, Exception):
+                pass
+
+        data.append({
+            'id': n.id,
+            'title': n.title,
+            'message': n.message,
+            'type': n.type if not is_completed else 'success',
+            'is_read': n.is_read,
+            'action_url': action_url,
+            'action_data': n.action_data,
+            'created_at': n.created_at.isoformat(),
+            'is_completed': is_completed
+        })
+    return jsonify({
+        'notifications': data,
+        'total': pagination.total,
+        'page': pagination.page,
+        'pages': pagination.pages,
+        'has_next': pagination.has_next
+    })
+
+@faculty_bp.route('/notifications/read-all', methods=['POST'])
+@role_required('faculty')
+def mark_all_read():
+    Notification.query.filter_by(user_id=current_user.id, is_read=False).update({Notification.is_read: True})
+    db.session.commit()
+    return jsonify({'success': True})
 

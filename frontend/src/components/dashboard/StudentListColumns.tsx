@@ -34,17 +34,22 @@ export const studentColumns: ColumnDef<any>[] = [
     {
         accessorKey: 'status',
         header: 'Status',
-        cell: ({ row }) => (
-            <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-medium border",
-                row.original.status === 'faculty_verified' || row.original.status === 'auto_verified' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
-                    row.original.status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' :
-                        'bg-amber-50 text-amber-700 border-amber-200'
-            )}>
-                {row.original.status === 'faculty_verified' ? 'Verified' :
-                    row.original.status === 'auto_verified' ? 'Auto Verified' :
-                        row.original.status}
-            </span>
-        )
+        cell: ({ row }) => {
+            const status = row.original.status;
+            const isVerified = status === 'faculty_verified' || status === 'auto_verified' || status === 'hod_approved';
+
+            return (
+                <span className={cn("px-2.5 py-0.5 rounded-full text-xs font-medium border",
+                    isVerified ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                        status === 'rejected' ? 'bg-red-50 text-red-700 border-red-200' :
+                            'bg-amber-50 text-amber-700 border-amber-200'
+                )}>
+                    {status === 'faculty_verified' || status === 'hod_approved' ? 'Verified' :
+                        status === 'auto_verified' ? 'Auto Verified' :
+                            status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+                </span>
+            );
+        }
     },
     {
         accessorKey: 'certificate_url',

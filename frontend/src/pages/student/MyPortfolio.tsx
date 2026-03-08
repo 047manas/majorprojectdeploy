@@ -45,6 +45,7 @@ const MyPortfolio = () => {
     const { user } = useAuth();
     const [data, setData] = useState<Activity[]>([]);
     const [totalPoints, setTotalPoints] = useState<number>(0);
+    const [gamificationCutoffs, setGamificationCutoffs] = useState<{ bronze: number, silver: number, gold: number, platinum: number } | undefined>(undefined);
     const [loading, setLoading] = useState(true);
     const [pdfLoading, setPdfLoading] = useState(false);
     const [pagination, setPagination] = useState<PaginationState>({
@@ -67,6 +68,9 @@ const MyPortfolio = () => {
             } else {
                 setData(response.data.activities || []);
                 setTotalPoints(response.data.total_points || 0);
+                if (response.data.gamification) {
+                    setGamificationCutoffs(response.data.gamification);
+                }
             }
         } catch (error) {
             console.error("Failed to fetch portfolio", error);
@@ -101,9 +105,13 @@ const MyPortfolio = () => {
 
             // Determine Tier
             let tier = "Bronze";
-            if (totalPoints >= 250) tier = "Platinum";
-            else if (totalPoints >= 120) tier = "Gold";
-            else if (totalPoints >= 50) tier = "Silver";
+            const platinum = gamificationCutoffs?.platinum || 250;
+            const gold = gamificationCutoffs?.gold || 120;
+            const silver = gamificationCutoffs?.silver || 50;
+
+            if (totalPoints >= platinum) tier = "Platinum";
+            else if (totalPoints >= gold) tier = "Gold";
+            else if (totalPoints >= silver) tier = "Silver";
 
             // Tier & Points Badge in Header
             doc.setFontSize(14);
@@ -268,17 +276,14 @@ const MyPortfolio = () => {
                     if (status === 'auto_verified') {
                         color = 'text-emerald-700 bg-emerald-100/80 dark:text-emerald-400 dark:bg-emerald-900/30';
                         label = 'Auto Verified';
-                    } else if (status === 'faculty_verified') {
-                        color = 'text-sky-700 bg-sky-100/80 dark:text-sky-400 dark:bg-sky-900/30';
-                        label = 'Pending HOD';
-                    } else if (status === 'hod_approved') {
-                        color = 'text-indigo-700 bg-indigo-100/80 dark:text-indigo-400 dark:bg-indigo-900/30';
+                    } else if (status === 'hod_approved' || status === 'faculty_verified') {
+                        color = 'text-emerald-700 bg-emerald-100/80 dark:text-emerald-400 dark:bg-emerald-900/30';
                         label = 'Verified';
                     } else if (status === 'rejected') {
                         color = 'text-rose-700 bg-rose-100/80 dark:text-rose-400 dark:bg-rose-900/30';
                         label = 'Rejected';
                     } else if (status === 'pending_upload') {
-                        color = 'text-orange-700 bg-orange-100/80 dark:text-orange-400 dark:bg-orange-900/30';
+                        color = 'text-amber-700 bg-amber-100/80 dark:text-amber-400 dark:bg-amber-900/30';
                         label = 'Upload Required';
                     }
 
@@ -289,14 +294,8 @@ const MyPortfolio = () => {
                             <span className={`px-2.5 py-1 rounded-lg text-xs font-semibold ${color} capitalize`}>
                                 {label}
                             </span>
-                            {status.includes('verified') && modeLabel && (
+                            {(status.includes('verified') || status === 'hod_approved') && modeLabel && (
                                 <div className="text-[0.65rem] text-slate-400 mt-1 font-medium">{modeLabel}</div>
-                            )}
-                            {status === 'hod_approved' && (
-                                <div className="text-[0.65rem] text-slate-400 mt-1 font-medium">By HOD</div>
-                            )}
-                            {status === 'faculty_verified' && (
-                                <div className="text-[0.65rem] text-amber-500 mt-1 font-medium animate-pulse">Awaiting final approval</div>
                             )}
                         </div>
                     );
@@ -444,7 +443,7 @@ const MyPortfolio = () => {
                 <Card className="col-span-1 md:col-span-1 border-indigo-100 dark:border-indigo-900/40 bg-white/60 dark:bg-slate-900/40 relative overflow-hidden backdrop-blur-xl shrink-0 h-48">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 dark:bg-indigo-500/20 rounded-full blur-3xl -mr-10 -mt-10"></div>
                     <CardContent className="h-full flex flex-col justify-center items-center py-6">
-                        <TierBadge points={totalPoints} size="lg" />
+                        <TierBadge points={totalPoints} size="lg" cutoffs={gamificationCutoffs} />
                         <div className="mt-4 text-center">
                             <span className="text-[0.65rem] font-black text-slate-400 uppercase tracking-widest">Verified Points</span>
                             <h2 className="text-4xl font-black text-slate-800 dark:text-white mt-1 leading-none">{totalPoints}</h2>
@@ -458,9 +457,14 @@ const MyPortfolio = () => {
                             <div className="w-full">
                                 <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Gamification Status</h3>
                                 <div className="space-y-4 w-full text-sm font-medium text-slate-600 dark:text-slate-400">
-                                    <div className="flex justify-between w-full"><span>Bronze (0)</span> <span>Silver (50)</span> <span>Gold (120)</span> <span>Platinum (250)</span></div>
+                                    <div className="flex justify-between w-full">
+                                        <span>Bronze (0)</span>
+                                        <span>Silver ({gamificationCutoffs?.silver || 50})</span>
+                                        <span>Gold ({gamificationCutoffs?.gold || 120})</span>
+                                        <span>Platinum ({gamificationCutoffs?.platinum || 250})</span>
+                                    </div>
                                     <div className="w-full h-3 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
-                                        <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-1000" style={{ width: `${Math.min((totalPoints / 250) * 100, 100)}%` }}></div>
+                                        <div className="h-full bg-gradient-to-r from-indigo-500 to-violet-500 rounded-full transition-all duration-1000" style={{ width: `${Math.min((totalPoints / (gamificationCutoffs?.platinum || 250)) * 100, 100)}%` }}></div>
                                     </div>
                                 </div>
                             </div>

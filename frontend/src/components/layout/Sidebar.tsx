@@ -51,11 +51,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleCollapse, isMobile
     }, [user?.role]);
 
     const fetchNotifCount = useCallback(async () => {
-        if (user?.role !== 'student') return;
+        if (user?.role !== 'student' && user?.role !== 'faculty') return;
         try {
-            const response = await api.get('/student/notifications');
+            const response = await api.get(`/${user.role}/notifications`);
             if (Array.isArray(response.data)) {
                 setNotifCount(response.data.filter((n: any) => !n.is_read).length);
+            } else if (response.data && Array.isArray(response.data.notifications)) {
+                setNotifCount(response.data.notifications.filter((n: any) => !n.is_read).length);
             }
         } catch {
             // Silently fail
@@ -90,6 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleCollapse, isMobile
                     { name: 'Verification Queue', icon: CheckSquare, path: '/faculty/queue', badgeKey: 'pending' },
                     { name: 'Upload Attendance', icon: Upload, path: '/faculty/attendance' },
                     { name: 'Analytics', icon: BarChart2, path: '/faculty/analytics' },
+                    { name: 'Notifications', icon: Bell, path: '/faculty/notifications', badgeKey: 'notifications' },
                 ];
             case 'student':
                 return [

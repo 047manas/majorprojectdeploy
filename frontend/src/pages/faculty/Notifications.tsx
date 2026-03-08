@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '@/services/api';
@@ -20,7 +19,7 @@ interface NotificationItem {
     created_at: string;
 }
 
-const Notifications = () => {
+const FacultyNotifications = () => {
     const [notifications, setNotifications] = useState<NotificationItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
@@ -30,9 +29,8 @@ const Notifications = () => {
 
     const fetchNotifications = async (pageNum = 1, append = false) => {
         try {
-            const response = await api.get(`/student/notifications?page=${pageNum}&per_page=50`);
+            const response = await api.get(`/faculty/notifications?page=${pageNum}&per_page=50`);
             const data = response.data;
-            // Handle both old format (array) and new paginated format
             if (Array.isArray(data)) {
                 setNotifications(data);
                 setHasMore(false);
@@ -61,7 +59,7 @@ const Notifications = () => {
 
     const markAllRead = async () => {
         try {
-            await api.post('/student/notifications/read-all');
+            await api.post('/faculty/notifications/read-all');
             fetchNotifications();
         } catch (error) {
             console.error("Error marking all read", error);
@@ -69,21 +67,17 @@ const Notifications = () => {
     };
 
     const handleNotificationClick = async (n: NotificationItem) => {
-        // Mark as read
         if (!n.is_read) {
             try {
-                await api.post('/student/notifications/read-all');
+                await api.post('/faculty/notifications/read-all');
                 setNotifications(prev =>
                     prev.map(item => item.id === n.id ? { ...item, is_read: true } : item)
                 );
             } catch (_) { /* ignore */ }
         }
 
-        // Navigate if action_url exists
         if (n.action_url) {
             let targetUrl = n.action_url;
-
-            // Parse action_data and append as query params
             if (n.action_data) {
                 try {
                     const data = JSON.parse(n.action_data);
@@ -91,10 +85,12 @@ const Notifications = () => {
                     Object.entries(data).forEach(([key, value]) => {
                         params.set(key, String(value));
                     });
-                    targetUrl += `?${params.toString()}`;
+
+                    // Prevent appending `?` to `targetUrl` if it already contains one.
+                    const hasQueryParams = targetUrl.includes('?');
+                    targetUrl += `${hasQueryParams ? '&' : '?'}${params.toString()}`;
                 } catch (_) { /* ignore bad JSON */ }
             }
-
             navigate(targetUrl);
         }
     };
@@ -201,7 +197,7 @@ const Notifications = () => {
                                             )}
                                             {n.is_completed && (
                                                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                                                    Certificate Uploaded ✓
+                                                    Completed ✓
                                                 </span>
                                             )}
                                         </div>
@@ -233,4 +229,4 @@ const Notifications = () => {
     );
 };
 
-export default Notifications;
+export default FacultyNotifications;

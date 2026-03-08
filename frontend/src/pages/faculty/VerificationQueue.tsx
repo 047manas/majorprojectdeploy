@@ -44,6 +44,8 @@ interface ReviewData {
     verification_mode: string | null;
     certificate_url: string | null;
     certificate_file: string | null;
+    is_attendance_uploaded: boolean;
+    attendance_verified_by: string | null;
     created_at: string;
     audit_trail?: any[];
 }
@@ -273,16 +275,31 @@ const VerificationQueue = () => {
                                 </div>
                             </div>
 
-                            {/* Issuer / Organizer */}
-                            {(reviewData.issuer_name || reviewData.organizer) && (
-                                <div className="p-3.5 bg-sky-50/80 dark:bg-sky-900/10 rounded-xl border border-sky-200/60 dark:border-sky-900/30">
-                                    {reviewData.issuer_name && (
-                                        <p className="text-sm text-slate-700 dark:text-slate-300"><span className="font-semibold">Issuer:</span> {reviewData.issuer_name}</p>
-                                    )}
-                                    {reviewData.organizer && (
-                                        <p className="text-sm text-slate-700 dark:text-slate-300"><span className="font-semibold">Organizer:</span> {reviewData.organizer}</p>
-                                    )}
+                            {/* Participation / Attendance Proof */}
+                            {reviewData.is_attendance_uploaded ? (
+                                <div className="p-3.5 bg-emerald-50 dark:bg-emerald-900/10 rounded-xl border border-emerald-200/60 dark:border-emerald-800/30 flex items-start gap-3">
+                                    <div className="mt-0.5 p-1.5 rounded-full bg-emerald-100 dark:bg-emerald-800/40 text-emerald-600 dark:text-emerald-400">
+                                        <ClipboardCheck className="h-4 w-4" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-emerald-800 dark:text-emerald-400">Participation Verified</p>
+                                        <p className="text-xs text-emerald-700/80 dark:text-emerald-500/80 mt-0.5">
+                                            Student presence confirmed via institutional attendance upload
+                                            {reviewData.attendance_verified_by && ` by ${reviewData.attendance_verified_by}`}.
+                                        </p>
+                                    </div>
                                 </div>
+                            ) : (
+                                (reviewData.issuer_name || reviewData.organizer) && (
+                                    <div className="p-3.5 bg-sky-50/80 dark:bg-sky-900/10 rounded-xl border border-sky-200/60 dark:border-sky-900/30 font-medium">
+                                        {reviewData.issuer_name && (
+                                            <p className="text-sm text-slate-700 dark:text-slate-300"><span className="font-semibold">Issuer:</span> {reviewData.issuer_name}</p>
+                                        )}
+                                        {reviewData.organizer && (
+                                            <p className="text-sm text-slate-700 dark:text-slate-300"><span className="font-semibold">Organizer:</span> {reviewData.organizer}</p>
+                                        )}
+                                    </div>
+                                )
                             )}
 
                             {/* Certificate Viewer */}

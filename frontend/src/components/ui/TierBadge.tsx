@@ -6,10 +6,24 @@ interface TierBadgeProps {
     points: number;
     size?: 'sm' | 'md' | 'lg';
     showLabel?: boolean;
+    cutoffs?: {
+        bronze: number;
+        silver: number;
+        gold: number;
+        platinum: number;
+    };
 }
 
-export const getTierDetails = (points: number) => {
-    if (points >= 250) {
+export const getTierDetails = (points: number, cutoffs?: TierBadgeProps['cutoffs']) => {
+    const defaultCutoffs = {
+        bronze: 0,
+        silver: 50,
+        gold: 120,
+        platinum: 250
+    };
+    const activeCutoffs = cutoffs || defaultCutoffs;
+
+    if (points >= activeCutoffs.platinum) {
         return {
             name: 'Platinum Tier',
             icon: Crown,
@@ -18,7 +32,7 @@ export const getTierDetails = (points: number) => {
             border: 'border-indigo-200 dark:border-indigo-800',
             gradient: 'from-indigo-400 to-violet-500'
         };
-    } else if (points >= 120) {
+    } else if (points >= activeCutoffs.gold) {
         return {
             name: 'Gold Tier',
             icon: Award,
@@ -27,7 +41,7 @@ export const getTierDetails = (points: number) => {
             border: 'border-amber-200 dark:border-amber-800',
             gradient: 'from-amber-400 to-orange-500'
         };
-    } else if (points >= 50) {
+    } else if (points >= activeCutoffs.silver) {
         return {
             name: 'Silver Tier',
             icon: Shield,
@@ -54,8 +68,8 @@ const sizeClasses = {
     lg: { container: 'p-2', icon: 'h-6 w-6', text: 'text-sm' },
 };
 
-export const TierBadge: React.FC<TierBadgeProps> = ({ points, size = 'md', showLabel = false }) => {
-    const tier = getTierDetails(points);
+export const TierBadge: React.FC<TierBadgeProps> = ({ points, size = 'md', showLabel = false, cutoffs }) => {
+    const tier = getTierDetails(points, cutoffs);
     const Icon = tier.icon;
     const s = sizeClasses[size];
 

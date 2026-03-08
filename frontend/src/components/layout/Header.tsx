@@ -62,11 +62,13 @@ const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
 
     React.useEffect(() => {
         const fetchNotifCount = async () => {
-            if (user?.role !== 'student') return;
+            if (user?.role !== 'student' && user?.role !== 'faculty') return;
             try {
-                const response = await api.get('/student/notifications');
+                const response = await api.get(`/${user.role}/notifications`);
                 if (Array.isArray(response.data)) {
                     setNotifCount(response.data.filter((n: any) => !n.is_read).length);
+                } else if (response.data && Array.isArray(response.data.notifications)) {
+                    setNotifCount(response.data.notifications.filter((n: any) => !n.is_read).length);
                 }
             } catch { /* Silent fail */ }
         };
@@ -118,9 +120,9 @@ const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                     </div>
                 </button>
 
-                {/* Notifications Link for Students */}
+                {/* Notifications Link for Students and Faculty */}
                 <button
-                    onClick={() => user?.role === 'student' && navigate('/student/notifications')}
+                    onClick={() => (user?.role === 'student' || user?.role === 'faculty') && navigate(`/${user.role}/notifications`)}
                     className="p-2.5 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all relative group"
                 >
                     <Bell size={20} />
@@ -130,7 +132,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
                             <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-gradient-to-r from-rose-500 to-pink-500"></span>
                         </span>
                     )}
-                    {user?.role === 'student' && (
+                    {(user?.role === 'student' || user?.role === 'faculty') && (
                         <div className="hidden group-hover:block absolute top-full right-0 mt-2 p-2.5 bg-white dark:bg-slate-800 shadow-xl rounded-xl border border-slate-200/50 dark:border-slate-700/50 text-xs whitespace-nowrap z-50 animate-slide-down">
                             {notifCount > 0 ? `${notifCount} Unread Alerts` : 'View Notifications'}
                         </div>

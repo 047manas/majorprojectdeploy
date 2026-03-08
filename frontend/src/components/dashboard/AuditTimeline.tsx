@@ -36,17 +36,17 @@ export const AuditTimeline: React.FC<AuditTimelineProps> = ({ events }) => {
                         {getIconForAction(evt.action)}
                     </div>
                     <div className="flex flex-col ml-3">
-                        <div className="flex items-baseline gap-2 mb-0.5 mt-0.5">
-                            <span className="font-bold text-sm text-slate-900 dark:text-slate-100">{evt.action}</span>
-                            <span className="text-xs text-slate-400 font-medium">
-                                {format(new Date(evt.timestamp), 'PPp')}
+                        <div className="flex items-center gap-2 mb-0.5">
+                            <span className="font-bold text-sm text-slate-800 dark:text-slate-200">{evt.action}</span>
+                            <span className="text-[0.65rem] text-slate-400 font-medium bg-slate-100 dark:bg-slate-800/50 px-2 py-0.5 rounded-full">
+                                {format(new Date(evt.timestamp), 'MMM d, h:mm a')}
                             </span>
                         </div>
-                        <p className="text-sm text-slate-600 dark:text-slate-300">
-                            By <span className="font-medium text-slate-800 dark:text-slate-200">{evt.actor}</span>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                            By <span className="font-semibold text-slate-700 dark:text-slate-300">{evt.actor}</span>
                         </p>
                         {evt.details && (
-                            <div className="mt-1.5 p-2 bg-slate-50 dark:bg-slate-900/50 rounded-md border border-slate-100 dark:border-slate-800 text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                            <div className="mt-2 p-2.5 bg-white/50 dark:bg-slate-900/40 rounded-xl border border-slate-100 dark:border-slate-800/50 text-[0.7rem] text-slate-500 dark:text-slate-400 leading-normal shadow-sm">
                                 {evt.details}
                             </div>
                         )}

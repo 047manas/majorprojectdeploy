@@ -9,6 +9,7 @@ import { useKPIs, AnalyticsFilters, useEventDistribution, useYearlyTrend, useDep
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import StudentListWidget from '@/components/dashboard/StudentListWidget';
 import InsightsPanel from '@/components/dashboard/InsightsPanel';
+import { Building2 } from 'lucide-react';
 
 const AnalyticsDashboard = () => {
     // const { user } = useAuth(); // Unused here

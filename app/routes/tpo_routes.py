@@ -3,6 +3,7 @@ from flask_login import login_required, current_user
 from app.models import db, User, StudentActivity, ActivityType
 from app.utils.decorators import role_required
 from sqlalchemy import or_
+from app.utils import get_gamification_cutoffs
 
 tpo_bp = Blueprint('tpo', __name__)
 
@@ -54,5 +55,6 @@ def get_student_profile(roll_number):
             'email': student.email
         },
         'total_points': total_points,
-        'activities': activities_data
+        'activities': activities_data,
+        'gamification': get_gamification_cutoffs()
     })

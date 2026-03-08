@@ -33,6 +33,7 @@ const TpoDashboard = () => {
     const [student, setStudent] = useState<StudentProfile | null>(null);
     const [activities, setActivities] = useState<Activity[]>([]);
     const [totalPoints, setTotalPoints] = useState<number>(0);
+    const [gamificationCutoffs, setGamificationCutoffs] = useState<{ bronze: number, silver: number, gold: number, platinum: number } | undefined>(undefined);
 
     const handleSearch = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -48,8 +49,11 @@ const TpoDashboard = () => {
             setStudent(response.data.student);
             setActivities(response.data.activities);
             setTotalPoints(response.data.total_points);
+            if (response.data.gamification) {
+                setGamificationCutoffs(response.data.gamification);
+            }
         } catch (err: any) {
-            setError(err.response?.data?.error || "Failed to fetch student profile");
+            setError(err.error || "Failed to fetch student profile");
         } finally {
             setLoading(false);
         }
@@ -139,7 +143,7 @@ const TpoDashboard = () => {
 
                             <div className="mt-6 p-4 rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/20 dark:to-teal-900/10 border border-emerald-100 dark:border-emerald-800/50 flex flex-col items-center justify-center shadow-inner relative overflow-hidden">
                                 <div className="absolute top-2 right-2">
-                                    <TierBadge points={totalPoints} size="sm" showLabel={true} />
+                                    <TierBadge points={totalPoints} size="sm" showLabel={true} cutoffs={gamificationCutoffs} />
                                 </div>
                                 <span className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-1 mt-2">Total Activity Score</span>
                                 <span className="text-5xl font-black text-emerald-700 dark:text-emerald-500 tracking-tighter">{totalPoints}</span>

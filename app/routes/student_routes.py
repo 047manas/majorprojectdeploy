@@ -13,6 +13,7 @@ from datetime import datetime
 import uuid
 import filetype
 from app.utils.audit import add_audit_event
+from app.utils.gamification import get_gamification_cutoffs
 
 student_bp = Blueprint('student', __name__)
 
@@ -192,6 +193,18 @@ def upload_activity():
         )
         db.session.add(new_activity)
         db.session.commit()
+
+        if status == 'pending' and assigned_reviewer_id:
+            notif_msg = f"New activity '{title}' submitted by {current_user.full_name} is awaiting your verification."
+            notif = Notification(
+                user_id=assigned_reviewer_id,
+                title="Activity Verification Required",
+                message=notif_msg,
+                type='info',
+                action_url=f"/faculty/queue"
+            )
+            db.session.add(notif)
+            db.session.commit()
         
         # Log Audit Trail
         aud_msg = f"Uploaded via portal. Initial Status: {status}"
@@ -239,7 +252,8 @@ def portfolio():
 
     return jsonify({
         'activities': data,
-        'total_points': total_points
+        'total_points': total_points,
+        'gamification': get_gamification_cutoffs()
     })
 
 @student_bp.route('/portfolio.pdf')
@@ -357,10 +371,45 @@ def edit_activity(activity_id):
     
     db.session.commit()
     
+    if activity.status == 'pending' and activity.assigned_reviewer_id:
+        notif_msg = f"Activity '{activity.title}' was re-uploaded by {current_user.full_name} and is awaiting your verification."
+        notif = Notification(
+            user_id=activity.assigned_reviewer_id,
+            title="Activity Re-submitted for Verification",
+            message=notif_msg,
+            type='info',
+            action_url=f"/faculty/queue"
+        )
+        db.session.add(notif)
+        db.session.commit()
+    
     # Log Audit Trail
     add_audit_event(activity.id, current_user.full_name, "Document Re-uploaded/Edited", "Student edited metadata or replaced the certificate.")
     
     return jsonify({'success': True, 'message': 'Activity updated successfully'})
+
+@student_bp.route('/activity/<int:activity_id>', methods=['GET'])
+@login_required
+def get_activity(activity_id):
+    activity = StudentActivity.query.filter_by(id=activity_id, is_deleted=False).first()
+    if not activity:
+        return jsonify({'error': 'Activity not found or has been removed.'}), 404
+    if activity.student_id != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    return jsonify({
+        'activity': {
+            'id': activity.id,
+            'title': activity.title,
+            'activity_type_id': activity.activity_type_id,
+            'issuer_name': activity.issuer_name,
+            'issuer_editable': not bool(activity.issuer_name),
+            'start_date': activity.start_date.isoformat() if activity.start_date else '',
+            'end_date': activity.end_date.isoformat() if activity.end_date else '',
+            'campus_type': activity.campus_type,
+            'status': activity.status
+        }
+    })
 
 @student_bp.route('/activity/<int:activity_id>', methods=['DELETE'])
 @login_required
@@ -398,16 +447,35 @@ def get_notifications():
         Notification.created_at.desc()
     ).paginate(page=page, per_page=per_page, error_out=False)
 
-    data = [{
-        'id': n.id,
-        'title': n.title,
-        'message': n.message,
-        'type': n.type,
-        'is_read': n.is_read,
-        'action_url': n.action_url,
-        'action_data': n.action_data,
-        'created_at': n.created_at.isoformat()
-    } for n in pagination.items]
+    data = []
+    for n in pagination.items:
+        is_completed = False
+        action_url = n.action_url
+        
+        # Check if this is an attendance upload notification that has been completed
+        if n.action_data:
+            try:
+                action_info = json.loads(n.action_data)
+                activity_id = action_info.get('activity_id')
+                if activity_id:
+                    linked_activity = StudentActivity.query.get(activity_id)
+                    if linked_activity and linked_activity.status != 'pending_upload':
+                        is_completed = True
+                        action_url = None  # Make non-clickable
+            except (json.JSONDecodeError, ValueError):
+                pass
+
+        data.append({
+            'id': n.id,
+            'title': n.title,
+            'message': n.message,
+            'type': n.type if not is_completed else 'success',
+            'is_read': n.is_read,
+            'action_url': action_url,
+            'action_data': n.action_data,
+            'created_at': n.created_at.isoformat(),
+            'is_completed': is_completed
+        })
     return jsonify({
         'notifications': data,
         'total': pagination.total,
@@ -430,7 +498,9 @@ def upload_for_attendance(activity_id):
     if current_user.role != 'student':
         return jsonify({'error': 'Unauthorized'}), 403
 
-    activity = StudentActivity.query.get_or_404(activity_id)
+    activity = StudentActivity.query.filter_by(id=activity_id, is_deleted=False).first()
+    if not activity:
+        return jsonify({'error': 'Activity not found or has been removed by the faculty.'}), 404
 
     # Security: Only the student who owns this record
     if activity.student_id != current_user.id:
@@ -446,6 +516,30 @@ def upload_for_attendance(activity_id):
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
+
+    # Handle optionally updating missing metadata during upload if provided
+    # Only update if the existing field is empty/null
+    title = request.form.get('title')
+    if title and not activity.title:
+        activity.title = title
+
+    attr_type_id = request.form.get('activity_type_id')
+    if attr_type_id and not activity.activity_type_id:
+        try:
+            activity.activity_type_id = int(attr_type_id)
+        except: pass
+
+    issuer_name = request.form.get('issuer_name')
+    if issuer_name and not activity.issuer_name:
+        # Student fills in the issuer that was left blank by incharge
+        activity.issuer_name = issuer_name
+
+    for date_field in ['start_date', 'end_date']:
+        date_str = request.form.get(date_field)
+        if date_str and not getattr(activity, date_field):
+            try:
+                setattr(activity, date_field, datetime.fromisoformat(date_str))
+            except: pass
 
     # Enforce 5MB file size limit
     file.seek(0, 2)
@@ -497,7 +591,10 @@ def upload_for_attendance(activity_id):
 
         # Assign reviewer if pending
         if status == 'pending':
-            if activity.activity_type and activity.activity_type.faculty_incharge_id:
+            if activity.campus_type == 'in_campus' and activity.attendance_uploaded_by:
+                # For In-Campus, the person who uploaded the attendance gets first review
+                activity.assigned_reviewer_id = activity.attendance_uploaded_by
+            elif activity.activity_type and activity.activity_type.faculty_incharge_id:
                 activity.assigned_reviewer_id = activity.activity_type.faculty_incharge_id
             else:
                 hod = User.query.filter_by(
@@ -509,6 +606,18 @@ def upload_for_attendance(activity_id):
                     activity.assigned_reviewer_id = hod.id
 
         db.session.commit()
+
+        if status == 'pending' and activity.assigned_reviewer_id:
+            notif_msg = f"Attendance certificate for '{activity.title}' uploaded by {current_user.full_name} is awaiting your verification."
+            notif = Notification(
+                user_id=activity.assigned_reviewer_id,
+                title="Attendance Verification Required",
+                message=notif_msg,
+                type='info',
+                action_url=f"/faculty/queue"
+            )
+            db.session.add(notif)
+            db.session.commit()
 
         # Log Audit Trail
         add_audit_event(activity.id, current_user.full_name, "Attendance Document Uploaded", f"Result: {status}")

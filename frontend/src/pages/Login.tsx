@@ -32,7 +32,7 @@ const Login = () => {
                 window.location.href = targetPath;
             }
         } catch (err: any) {
-            setError(err.response?.data?.error || err.error || "Login failed. Please check your credentials.");
+            setError(err.error || "Login failed. Please check your credentials.");
         } finally {
             setLoading(false);
         }

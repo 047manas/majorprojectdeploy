@@ -19,6 +19,7 @@ import MyPortfolio from '@/pages/student/MyPortfolio';
 import Notifications from '@/pages/student/Notifications';
 import VerifyPublic from '@/pages/VerifyPublic';
 import TpoDashboard from '@/pages/admin/TpoDashboard';
+import FacultyNotifications from '@/pages/faculty/Notifications';
 
 // Redirect helper for root path
 const IndexRedirect = () => {
@@ -93,6 +94,7 @@ function App() {
                             <Route path="/faculty/queue" element={<RoleGuard allowedRoles={['faculty']}><VerificationQueue /></RoleGuard>} />
                             <Route path="/faculty/attendance" element={<RoleGuard allowedRoles={['faculty']}><AttendanceUpload /></RoleGuard>} />
                             <Route path="/faculty/analytics" element={<RoleGuard allowedRoles={['faculty']}><AnalyticsDashboard /></RoleGuard>} />
+                            <Route path="/faculty/notifications" element={<RoleGuard allowedRoles={['faculty']}><FacultyNotifications /></RoleGuard>} />
 
                             {/* Student Routes */}
                             <Route path="/student" element={
