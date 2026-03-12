@@ -11,9 +11,11 @@ def login():
     # Browser GET request -> Redirect to Frontend
     if request.method == 'GET':
         from flask import redirect
+        from flask import current_app
+        frontend_url = current_app.config['ALLOWED_ORIGINS'][0]
         if current_user.is_authenticated:
-             return redirect("http://localhost:5173/")
-        return redirect("http://localhost:5173/login")
+             return redirect(f"{frontend_url}/")
+        return redirect(f"{frontend_url}/login")
     
     # API POST request
     data = request.get_json()
@@ -52,9 +54,11 @@ def login():
 @login_required
 def logout():
     logout_user()
+    from flask import current_app
+    frontend_url = current_app.config['ALLOWED_ORIGINS'][0]
     if request.method == 'GET':
         from flask import redirect
-        return redirect("http://localhost:5173/login")
+        return redirect(f"{frontend_url}/login")
     return jsonify({'success': True, 'message': 'Logged out successfully'})
 
 # Fix #5 & #6: Return standardized response format matching what AuthContext expects
