@@ -59,9 +59,9 @@ def create_app(config_class=Config):
     csrf.exempt(analytics_bp)
     csrf.exempt(tpo_bp)
 
-    # Enable CORS for development
+    # Enable CORS for production and development
     from flask_cors import CORS
-    CORS(app, resources={r"/api/*": {"origins": ["http://localhost:5173", "http://127.0.0.1:5173", r"^https://.*\.ngrok-free\.app$"]}}, supports_credentials=True)
+    CORS(app, resources={r"/api/*": {"origins": app.config['ALLOWED_ORIGINS']}}, supports_credentials=True)
 
     # Global Error Handlers
     from app.utils.api_response import error_response
