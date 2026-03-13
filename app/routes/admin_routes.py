@@ -207,8 +207,8 @@ def activity_types():
     if default_campus_type not in ('in_campus', 'off_campus'):
         default_campus_type = 'off_campus'
     
-    if ActivityType.query.filter_by(name=name).first():
-        return jsonify({'error': 'Activity Type already exists.'}), 400
+    if ActivityType.query.filter_by(name=name, description=description).first():
+        return jsonify({'error': f"An activity with the name '{name}' and title '{description}' already exists."}), 400
     else:
         weightage = data.get('weightage', 10)
         try:
@@ -257,9 +257,9 @@ def edit_activity_type(at_id):
     if default_campus_type in ('in_campus', 'off_campus'):
         at.default_campus_type = default_campus_type
     
-    existing = ActivityType.query.filter(ActivityType.name == at.name, ActivityType.id != at.id).first()
+    existing = ActivityType.query.filter(ActivityType.name == at.name, ActivityType.description == at.description, ActivityType.id != at.id).first()
     if existing:
-        return jsonify({'error': f"Activity Type '{at.name}' already exists."}), 400
+        return jsonify({'error': f"An activity with the name '{at.name}' and title '{at.description}' already exists."}), 400
     else:
         weightage = data.get('weightage', at.weightage)
         try:

@@ -291,7 +291,7 @@ const UploadActivity = () => {
                                     >
                                         <option value="">Select Category...</option>
                                         {types.map(t => (
-                                            <option key={t.id} value={t.id}>{t.name}</option>
+                                            <option key={t.id} value={t.id}>{t.name} - {t.description}</option>
                                         ))}
                                         <option value="other">Other / Custom</option>
                                     </select>

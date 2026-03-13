@@ -61,7 +61,7 @@ class ActivityType(db.Model):
     __tablename__ = 'activity_types'
     
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), nullable=False, unique=True)
+    name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.String(255), nullable=True)
     default_campus_type = db.Column(db.String(20), nullable=True, default='off_campus')
     weightage = db.Column(db.Integer, nullable=False, default=10)
