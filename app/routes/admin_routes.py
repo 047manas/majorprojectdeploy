@@ -307,6 +307,11 @@ def admin_delete_activity(activity_id):
              return jsonify({'error': 'Unauthorized: You are not the In-Charge for this activity category.'}), 403
 
     # Hard delete: remove activity record from database
+    # Cleanup: Remove any associated notifications (e.g. "Verification Required")
+    Notification.query.filter(
+        Notification.action_data.contains(f'"activity_id": {activity.id}')
+    ).delete(synchronize_session=False)
+
     db.session.delete(activity)
     db.session.commit()
     

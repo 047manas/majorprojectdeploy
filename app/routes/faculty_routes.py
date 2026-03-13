@@ -821,7 +821,16 @@ def bulk_approve_event():
     for activity in activities:
         activity.status = 'faculty_verified'
         activity.faculty_id = current_user.id
+        
+        # Log Audit Trail
         add_audit_event(activity.id, current_user.full_name, "Verified (Bulk)", "Approved via Event Roster Bulk Action")
+        
+        # Cleanup: Remove the "Verification Required" notification for the faculty/admin
+        Notification.query.filter(
+            Notification.user_id == current_user.id,
+            Notification.action_data.contains(f'"activity_id": {activity.id}')
+        ).delete(synchronize_session=False)
+        
         count += 1
 
     db.session.commit()
@@ -960,7 +969,8 @@ def get_notifications():
                 activity_id = action_info.get('activity_id')
                 if activity_id:
                     linked_activity = StudentActivity.query.get(activity_id)
-                    if linked_activity and linked_activity.status != 'pending_upload':
+                    # Completed if activity is reviewed (not pending) or removed
+                    if not linked_activity or linked_activity.status not in ['pending', 'pending_upload']:
                         is_completed = True
                         action_url = None
             except (json.JSONDecodeError, ValueError):
