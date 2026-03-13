@@ -473,8 +473,9 @@ class AnalyticsService:
         # 3. Total Participations (Active Only)
         total_participations = base_q.with_entities(func.count(StudentActivity.id)).scalar() or 0
         
-        # [NEW] Total Submissions (Including Deleted for Integrity Impact)
+        # [NEW] Total Submissions (Active Only)
         total_submissions_q = db.session.query(func.count(StudentActivity.id)).join(User, StudentActivity.student_id == User.id)
+        total_submissions_q = total_submissions_q.filter(StudentActivity.is_deleted == False)
         total_submissions_q = AnalyticsService._apply_role_scope(total_submissions_q)
         total_submissions_q = AnalyticsService._apply_filters(total_submissions_q, filters)
         total_submissions = total_submissions_q.scalar() or 0

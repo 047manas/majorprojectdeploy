@@ -1,4 +1,4 @@
-from flask import Blueprint, request, current_app, make_response, send_from_directory, abort, jsonify, render_template
+from flask import Blueprint, request, current_app, make_response, send_from_directory, abort, jsonify, render_template, redirect
 from flask_login import login_required, current_user
 from app.models import ActivityType, StudentActivity, db, User, Notification
 from app.services.verification.verification_service import VerificationService
@@ -14,6 +14,7 @@ import uuid
 import filetype
 from app.utils.audit import add_audit_event
 from app.utils.gamification import get_gamification_cutoffs
+from app.services.storage_service import storage_service
 
 student_bp = Blueprint('student', __name__)
 
@@ -124,6 +125,9 @@ def upload_activity():
         
         filepath = os.path.join(upload_folder, unique_filename)
         file.save(filepath)
+        
+        # Upload to Cloud (Supabase) if configured
+        public_url, is_cloud = storage_service.upload_file(filepath, unique_filename)
         
         # --- Verification Logic ---
         verifier = VerificationService()
@@ -298,6 +302,11 @@ def serve_upload(filename):
     Serve uploaded files. Supports both session-based and token-based access.
     Token-based access uses the ?token= query parameter.
     """
+    # Check if this file exists in Cloud Storage first
+    cloud_url = storage_service.get_file_url(filename)
+    if cloud_url:
+        return redirect(cloud_url)
+
     token = request.args.get('token')
     
     # Check if a valid token is provided
@@ -445,11 +454,18 @@ def delete_activity(activity_id):
             except Exception as e:
                 current_app.logger.error(f"Error deleting certificate file: {e}")
             
-    # Cleanup: Remove any "Verification Required" notifications for assigned faculty
-    Notification.query.filter(
-        Notification.action_data.contains(f'"activity_id": {activity.id}')
-    ).delete(synchronize_session=False)
+    # Notify assigned faculty of withdrawal
+    if activity.assigned_reviewer_id:
+        notif = Notification(
+            user_id=activity.assigned_reviewer_id,
+            title='Activity Withdrawn',
+            message=f'Student {current_user.full_name} has withdrawn their activity submission: "{activity.title}".',
+            type='warning'
+        )
+        db.session.add(notif)
 
+    # Note: We do NOT hard-delete existing notifications anymore (managed by is_completed in get_notifications)
+    
     db.session.delete(activity)
     db.session.commit()
     

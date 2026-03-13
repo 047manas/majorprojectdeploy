@@ -737,6 +737,7 @@ def delete_event():
             act.campus_type = 'off_campus'
             act.is_attendance_uploaded = False
             act.attendance_uploaded_by = None
+            act.activity_type_id = None # Move to 'Other' category as requested
             
             # Find the HOD for the student's department to take over review
             hod = User.query.filter_by(
@@ -761,8 +762,7 @@ def delete_event():
                     user_id=act.student_id,
                     title='Event Removed (Certificate Preserved)',
                     message=f'The in-campus event "{title}" was removed by {current_user.full_name}. However, because you already uploaded your certificate, your record has been preserved and converted to a regular off-campus activity for your HOD to verify.',
-                    type='info',
-                    action_url='/student/portfolio'
+                    type='info'
                 )
                 db.session.add(notif)
                 notified_student_ids.add(act.student_id)
@@ -771,10 +771,9 @@ def delete_event():
     if event_incharge_id and event_incharge_id != current_user.id:
         incharge_notif = Notification(
             user_id=event_incharge_id,
-            title='Your Event Was Deleted',
-            message=f'Your event "{title}" has been deleted by {current_user.full_name}. {deleted_count} pending student records were removed, and {migrated_count} submitted certificates were converted to off-campus records.',
-            type='warning',
-            action_url='/faculty/attendance'
+            title='In-Campus Event Deleted',
+            message=f'The event "{title}" has been deleted by {current_user.full_name}. {deleted_count} pending student records were removed, and {migrated_count} submitted certificates were converted to off-campus records (Other).',
+            type='error'
         )
         db.session.add(incharge_notif)
 

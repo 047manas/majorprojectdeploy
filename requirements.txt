@@ -16,3 +16,4 @@ python-dotenv
 filetype
 gunicorn
 flask-wtf
+supabase

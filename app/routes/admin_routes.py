@@ -160,8 +160,16 @@ def delete_user(user_id):
     if user.role == 'admin' and user.email == 'admin@example.com':
         return jsonify({'error': 'Cannot delete default admin.'}), 400
     
+    # Notify student of deletion
+    notif_student = Notification(
+        user_id=user.id,
+        title='Account Management',
+        message=f'Your account record has been updated/removed by an Admin. Reason: {reason}',
+        type='warning'
+    )
+    db.session.add(notif_student)
+    
     # Hard delete: remove record from database
-    # Cascading deletes in models.py handle notifications and student roles
     db.session.delete(user)
     db.session.commit()
     
@@ -306,12 +314,30 @@ def admin_delete_activity(activity_id):
         if not is_incharge:
              return jsonify({'error': 'Unauthorized: You are not the In-Charge for this activity category.'}), 403
 
-    # Hard delete: remove activity record from database
-    # Cleanup: Remove any associated notifications (e.g. "Verification Required")
-    Notification.query.filter(
-        Notification.action_data.contains(f'"activity_id": {activity.id}')
-    ).delete(synchronize_session=False)
+    # Notify stakeholders before deletion
+    # 1. Notify Student
+    notif_student = Notification(
+        user_id=activity.student_id,
+        title='Activity Record Deleted',
+        message=f'Your activity "{activity.title}" was deleted by an Admin. Reason: {reason}',
+        type='error'
+    )
+    db.session.add(notif_student)
 
+    # 2. Notify Assigned Faculty (if any and not the one deleting)
+    if activity.assigned_reviewer_id and activity.assigned_reviewer_id != current_user.id:
+        notif_faculty = Notification(
+            user_id=activity.assigned_reviewer_id,
+            title='Assigned Activity Deleted',
+            message=f'The activity "{activity.title}" (Student: {activity.student.full_name}) assigned to you was deleted by {current_user.full_name}.',
+            type='warning'
+        )
+        db.session.add(notif_faculty)
+
+    # Note: We do NOT hard-delete existing notifications anymore so they show as "Done/Deleted"
+    # Mark the activity as deleted in the DB instead of hard delete if we want to preserve audit trail?
+    # Actually, the user wants it "deleted from list" but notifications to stay.
+    
     db.session.delete(activity)
     db.session.commit()
     

@@ -16,6 +16,11 @@ class Config:
     BASE_DIR = os.path.abspath(os.path.dirname(__file__))
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'app', 'uploads')
 
+    # Supabase (Cloud Storage)
+    SUPABASE_URL = os.getenv('SUPABASE_URL')
+    SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+    SUPABASE_BUCKET = os.getenv('SUPABASE_BUCKET', 'certificates')
+
     # CORS
     _raw_origins = os.getenv('CORS_ALLOWED_ORIGINS', os.getenv('ALLOWED_ORIGINS', 'https://majorprojectdeploy.vercel.app,http://localhost:5173,http://127.0.0.1:5173'))
     ALLOWED_ORIGINS = [o.strip().rstrip('/') for o in _raw_origins.split(',') if o.strip()]
