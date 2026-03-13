@@ -50,15 +50,10 @@ def login():
     else:
         return error_response('Invalid email or password', 401)
 
-@auth_bp.route('/logout', methods=['GET', 'POST'])
+@auth_bp.route('/logout', methods=['POST'])
 @login_required
 def logout():
     logout_user()
-    from flask import current_app
-    frontend_url = current_app.config['ALLOWED_ORIGINS'][0]
-    if request.method == 'GET':
-        from flask import redirect
-        return redirect(f"{frontend_url}/login")
     return jsonify({'success': True, 'message': 'Logged out successfully'})
 
 # Fix #5 & #6: Return standardized response format matching what AuthContext expects

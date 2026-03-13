@@ -135,7 +135,7 @@ def review_request(act_id):
         'verification_mode': activity.verification_mode,
         'attendance_verified_by': activity.attendance_uploader.full_name if activity.attendance_uploader else None,
         'is_attendance_uploaded': activity.is_attendance_uploaded,
-        'certificate_url': cert_url,
+        'certificate_url': f"/api/student/uploads/{activity.certificate_file}?token={activity.verification_token}" if activity.certificate_file else None,
         'certificate_file': activity.certificate_file,
         'created_at': activity.created_at.isoformat(),
         'audit_trail': json.loads(activity.audit_trail) if activity.audit_trail else []
@@ -203,6 +203,13 @@ def approve_request(act_id):
         action_data=json.dumps({'activity_id': activity.id})
     )
     db.session.add(notif)
+
+    # Cleanup: Remove the "Verification Required" notification for the faculty/admin
+    Notification.query.filter(
+        Notification.user_id == current_user.id,
+        Notification.action_data.contains(f'"activity_id": {activity.id}')
+    ).delete(synchronize_session=False)
+
     db.session.commit()
 
     return jsonify({'success': True, 'message': f"Activity #{act_id} Approved."})
@@ -251,6 +258,13 @@ def reject_request(act_id):
         action_data=json.dumps({'rejected_activity_id': activity.id, 'title': activity.title})
     )
     db.session.add(notif)
+
+    # Cleanup: Remove the "Verification Required" notification for the faculty/admin
+    Notification.query.filter(
+        Notification.user_id == current_user.id,
+        Notification.action_data.contains(f'"activity_id": {activity.id}')
+    ).delete(synchronize_session=False)
+
     db.session.commit()
 
     return jsonify({'success': True, 'message': f"Activity #{act_id} Rejected."})

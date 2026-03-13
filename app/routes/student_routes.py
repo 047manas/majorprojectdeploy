@@ -186,7 +186,7 @@ def upload_activity():
             auto_decision=auto_decision,
             prev_activity_id=prev_id,
             assigned_reviewer_id=assigned_reviewer_id,
-            verification_token=secrets.token_urlsafe(16) if status == 'auto_verified' else None,
+            verification_token=secrets.token_urlsafe(16),
             verification_mode=verification.get('verification_mode', 'text_only'),
             auto_details=verification.get('auto_details'),
             campus_type=campus_type
@@ -201,7 +201,8 @@ def upload_activity():
                 title="Activity Verification Required",
                 message=notif_msg,
                 type='info',
-                action_url=f"/faculty/queue"
+                action_url=f"/faculty/queue",
+                action_data=json.dumps({'activity_id': new_activity.id})
             )
             db.session.add(notif)
             db.session.commit()
@@ -242,7 +243,7 @@ def portfolio():
             'status': a.status,
             'campus_type': a.campus_type or 'off_campus',
             'is_attendance_uploaded': a.is_attendance_uploaded,
-            'certificate_url': f"/api/student/uploads/{a.certificate_file}" if a.certificate_file else None,
+            'certificate_url': f"/api/student/uploads/{a.certificate_file}?token={a.verification_token}" if a.certificate_file else None,
             'verification_token': a.verification_token,
             'verification_mode': a.verification_mode,
             'activity_type_name': a.activity_type.name if a.activity_type else (a.custom_category or 'Other'),
@@ -291,13 +292,27 @@ def portfolio_pdf():
     response.headers['Content-Type'] = 'application/pdf'
     response.headers['Content-Disposition'] = f'attachment; filename=portfolio_{current_user.institution_id}.pdf'
     
-    return response
-
 @student_bp.route('/uploads/<path:filename>')
-@login_required
 def serve_upload(filename):
+    """
+    Serve uploaded files. Supports both session-based and token-based access.
+    Token-based access uses the ?token= query parameter.
+    """
+    token = request.args.get('token')
+    
+    # Check if a valid token is provided
+    if token:
+        activity = StudentActivity.query.filter_by(certificate_file=filename, verification_token=token).first()
+        if activity:
+            return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
+
+    # Fallback to session-based access
+    if not current_user or not current_user.is_authenticated:
+         return jsonify({'error': 'Authentication required'}), 401
+         
     if current_user.role not in ['faculty', 'admin', 'student']:
         return jsonify({'error': 'Unauthorized'}), 403
+        
     return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
 
 @student_bp.route('/activity/<int:activity_id>', methods=['PUT'])
@@ -378,7 +393,8 @@ def edit_activity(activity_id):
             title="Activity Re-submitted for Verification",
             message=notif_msg,
             type='info',
-            action_url=f"/faculty/queue"
+            action_url=f"/faculty/queue",
+            action_data=json.dumps({'activity_id': activity.id})
         )
         db.session.add(notif)
         db.session.commit()
@@ -582,11 +598,10 @@ def upload_for_attendance(activity_id):
         activity.certificate_hash = file_hash
         activity.urls_json = json.dumps(verification['urls'])
         activity.ids_json = json.dumps(verification['ids'])
-        activity.status = status
         activity.auto_decision = auto_decision
         activity.verification_mode = verification.get('verification_mode', 'text_only')
         activity.auto_details = verification.get('auto_details')
-        if status == 'auto_verified':
+        if not activity.verification_token:
             activity.verification_token = secrets.token_urlsafe(16)
 
         # Assign reviewer if pending
@@ -614,7 +629,8 @@ def upload_for_attendance(activity_id):
                 title="Attendance Verification Required",
                 message=notif_msg,
                 type='info',
-                action_url=f"/faculty/queue"
+                action_url=f"/faculty/queue",
+                action_data=json.dumps({'activity_id': activity.id})
             )
             db.session.add(notif)
             db.session.commit()
