@@ -444,6 +444,9 @@ class AnalyticsService:
         [FIXED] KPIs with Integrity Impact
         Deletion of certificates now 'Impacts' the verification rate.
         """
+        import time
+        t_start = time.time()
+        
         base_q = AnalyticsService._get_base_query(filters)
         
         # 1. Total Students (Active)
@@ -462,28 +465,33 @@ class AnalyticsService:
                 total_students_q = total_students_q.filter(User.department == filters['department'])
             if filters.get('batch'):
                 total_students_q = total_students_q.filter(User.batch_year == str(filters['batch']))
+        
+        t1 = time.time()
         total_students = total_students_q.scalar() or 0
+        t2 = time.time()
 
         # 2. Total Events - Strict Identity
         total_events = base_q.with_entities(
             func.count(distinct(AnalyticsService._get_event_identity_expr()))
         ).scalar() or 0
+        t3 = time.time()
         
         # 3. Total Participations (Active Only)
         total_participations = base_q.with_entities(func.count(StudentActivity.id)).scalar() or 0
+        t4 = time.time()
         
         # [NEW] Total Submissions (Including Deleted for Integrity Impact)
-        # We manually build the query to bypass the active-only filter of base_q
         total_submissions_q = db.session.query(func.count(StudentActivity.id)).join(User, StudentActivity.student_id == User.id)
-        # Apply HOD/Department filters but NOT the is_deleted check for impact
         total_submissions_q = AnalyticsService._apply_role_scope(total_submissions_q)
         total_submissions_q = AnalyticsService._apply_filters(total_submissions_q, filters)
         total_submissions = total_submissions_q.scalar() or 0
+        t5 = time.time()
         
         # 4. Unique Students (Only include students)
         unique_students = base_q.with_entities(func.count(distinct(StudentActivity.student_id)))\
             .join(User, StudentActivity.student_id == User.id)\
             .filter(User.role == 'student').scalar() or 0
+        t6 = time.time()
         
         # 5. Engagement Rate
         engagement_rate = round((unique_students / total_students * 100), 1) if total_students > 0 else 0
@@ -496,13 +504,14 @@ class AnalyticsService:
             func.sum(case((or_(StudentActivity.status == 'faculty_verified', StudentActivity.status == 'auto_verified', StudentActivity.status == 'hod_approved'), 1), else_=0)).label('verified'),
             func.sum(case((StudentActivity.status == 'pending', 1), else_=0)).label('pending')
         ).first()
+        t7 = time.time()
 
         verified_count = int(status_counts.verified or 0) if status_counts else 0
         pending_count = int(status_counts.pending or 0) if status_counts else 0
         
-        # [IMPACT] Rate is verified vs ALL submissions ever (shows cleaning impact)
-        # If user deletes a fake one, the rate drops below 100%
         verified_rate = round((verified_count / total_submissions * 100), 1) if total_submissions > 0 else 0
+
+        print(f"DEBUG KPI PERF: total={time.time()-t_start:.2f}s | students={t2-t1:.2f}s | events={t3-t2:.2f}s | parts={t4-t3:.2f}s | subs={t5-t4:.2f}s | unique={t6-t5:.2f}s | status={t7-t6:.2f}s")
 
         return {
             "total_students": total_students,
@@ -515,7 +524,7 @@ class AnalyticsService:
             "verified_rate": verified_rate,
             "verified_count": verified_count,
             "pending_count": pending_count,
-            "integrity_impact": total_submissions - total_participations # Count of deleted records
+            "integrity_impact": total_submissions - total_participations
         }
 
     @staticmethod
