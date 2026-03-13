@@ -17,7 +17,8 @@ class Config:
     UPLOAD_FOLDER = os.path.join(BASE_DIR, 'app', 'uploads')
 
     # CORS
-    ALLOWED_ORIGINS = os.getenv('CORS_ALLOWED_ORIGINS', os.getenv('ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173')).split(',')
+    _raw_origins = os.getenv('CORS_ALLOWED_ORIGINS', os.getenv('ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173'))
+    ALLOWED_ORIGINS = [o.strip().rstrip('/') for o in _raw_origins.split(',') if o.strip()]
 
     # Session/Cookie Settings
     SESSION_COOKIE_HTTPONLY = True
