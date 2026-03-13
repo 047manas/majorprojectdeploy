@@ -15,8 +15,10 @@ export interface PaginatedResponse<T> {
 }
 
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || '/api', // Use env var in prod, proxy in dev
-    withCredentials: true, // Send Cookies (Flask-Login session)
+    baseURL: import.meta.env.VITE_API_URL 
+        ? `${import.meta.env.VITE_API_URL}/api` 
+        : '/api',
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
     },
