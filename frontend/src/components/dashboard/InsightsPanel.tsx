@@ -12,10 +12,14 @@ import { useAdminInsights, AnalyticsFilters } from '@/hooks/useAnalytics';
 
 interface InsightsPanelProps {
     filters: AnalyticsFilters;
+    data?: any;
+    isLoading?: boolean;
 }
 
-const InsightsPanel: React.FC<InsightsPanelProps> = ({ filters }) => {
-    const { data, isLoading } = useAdminInsights(filters);
+const InsightsPanel: React.FC<InsightsPanelProps> = ({ filters, data: preFetchedData, isLoading: preFetchedLoading }) => {
+    const { data: hookedData, isLoading: hookedLoading } = useAdminInsights(filters, { enabled: !preFetchedData });
+    const data = preFetchedData || hookedData;
+    const isLoading = preFetchedData ? preFetchedLoading : hookedLoading;
     const [deptModalOpen, setDeptModalOpen] = React.useState(false);
     const [catModalOpen, setCatModalOpen] = React.useState(false);
 

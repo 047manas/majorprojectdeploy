@@ -79,7 +79,7 @@ class StudentActivity(db.Model):
     __tablename__ = 'student_activities'
     
     id = db.Column(db.Integer, primary_key=True)
-    student_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    student_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
     activity_type_id = db.Column(db.Integer, db.ForeignKey('activity_types.id', ondelete='SET NULL'), nullable=True, index=True)
     custom_category = db.Column(db.String(100), nullable=True)
     

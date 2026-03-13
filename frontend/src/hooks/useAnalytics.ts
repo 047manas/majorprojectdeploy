@@ -18,7 +18,7 @@ const getQueryKey = (key: string, filters: AnalyticsFilters) => [key, filters];
 // e.g., api.get('/analytics/kpis') → proxy → /api/analytics/kpis → blueprint /kpis
 
 // --- KPIs ---
-export const useKPIs = (filters: AnalyticsFilters) => {
+export const useKPIs = (filters: AnalyticsFilters, options = {}) => {
     return useQuery({
         queryKey: getQueryKey('kpis', filters),
         queryFn: async () => {
@@ -27,6 +27,7 @@ export const useKPIs = (filters: AnalyticsFilters) => {
         },
         staleTime: 30 * 1000,
         refetchInterval: 30 * 1000,
+        ...options
     });
 };
 
@@ -82,12 +83,26 @@ export const useDashboardMeta = () => {
 };
 
 // --- Admin Insights ---
-export const useAdminInsights = (filters: AnalyticsFilters) => {
+export const useAdminInsights = (filters: AnalyticsFilters, options = {}) => {
     return useQuery({
         queryKey: getQueryKey('admin-insights', filters),
         queryFn: async () => {
             const { data } = await api.get('/analytics/insights', { params: filters });
             return data.data;
+        },
+        staleTime: 30 * 1000,
+        refetchInterval: 30 * 1000,
+        ...options
+    });
+};
+
+// --- Composite Dashboard (Single Request) ---
+export const useDashboardComposite = (filters: AnalyticsFilters) => {
+    return useQuery({
+        queryKey: getQueryKey('dashboard-composite', filters),
+        queryFn: async () => {
+             const { data } = await api.get('/analytics/dashboard-composite', { params: filters });
+             return data.data;
         },
         staleTime: 30 * 1000,
         refetchInterval: 30 * 1000,

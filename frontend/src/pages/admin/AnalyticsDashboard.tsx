@@ -5,7 +5,7 @@ import ExportButtons from '@/components/dashboard/ExportButtons';
 import DrilldownModal from '@/components/dashboard/DrilldownModal';
 import TrendChart from '@/components/charts/TrendChart';
 import CategoryChart from '@/components/charts/CategoryChart';
-import { useKPIs, AnalyticsFilters, useEventDistribution, useYearlyTrend, useDeptParticipation } from '@/hooks/useAnalytics';
+import { AnalyticsFilters, useDashboardComposite } from '@/hooks/useAnalytics';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import StudentListWidget from '@/components/dashboard/StudentListWidget';
 import InsightsPanel from '@/components/dashboard/InsightsPanel';
@@ -21,11 +21,20 @@ const AnalyticsDashboard = () => {
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-    // Data Fetching
-    const { data: kpiData, isLoading: kpiLoading, isError: kpiError } = useKPIs(filters);
-    const { data: trendData, isLoading: trendLoading } = useYearlyTrend(filters);
-    const { data: distData, isLoading: distLoading } = useEventDistribution(filters);
-    const { data: deptData, isLoading: deptLoading } = useDeptParticipation(filters);
+    // Data Fetching (Consolidated to prevent timeouts)
+    const { data: compositeData, isLoading: compositeLoading, isError: compositeError } = useDashboardComposite(filters);
+
+    // Flatten data for easier access
+    const kpiData = compositeData?.kpis;
+    const trendData = compositeData?.trend;
+    const distData = compositeData?.distribution;
+    const deptData = compositeData?.participation;
+    const insightsData = compositeData?.insights;
+
+    const kpiLoading = compositeLoading;
+    const trendLoading = compositeLoading;
+    const distLoading = compositeLoading;
+    const deptLoading = compositeLoading;
 
     // Transform Data for Charts (Recharts expects array of objects)
     const pieData = Array.isArray(distData)
@@ -71,7 +80,7 @@ const AnalyticsDashboard = () => {
 
 
 
-    if (kpiError) {
+    if (compositeError) {
         return <div className="p-6 text-red-500">Error loading dashboard data. Please try again.</div>;
     }
 
@@ -173,7 +182,11 @@ const AnalyticsDashboard = () => {
                 </Card>
 
 
-                <InsightsPanel filters={filters} />
+                <InsightsPanel 
+                    filters={filters} 
+                    data={insightsData}
+                    isLoading={compositeLoading}
+                />
             </div>
             {/* Modals */}
             <DrilldownModal

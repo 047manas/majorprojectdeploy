@@ -103,6 +103,14 @@ def get_admin_insights():
     data = AnalyticsService.get_admin_insights(filters)
     return success_response(data)
 
+@analytics_bp.route('/dashboard-composite')
+@login_required
+def get_dashboard_composite():
+    """Single-trip endpoint for all dashboard metrics to prevent timeouts."""
+    filters = get_filters()
+    data = AnalyticsService.get_dashboard_composite(filters)
+    return success_response(data)
+
 @analytics_bp.route('/health')
 @login_required
 def get_data_health():

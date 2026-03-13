@@ -820,7 +820,7 @@ class AnalyticsService:
         }
 
     @staticmethod
-    def get_admin_insights(filters=None):
+    def get_admin_insights(filters=None, precomputed_kpis=None):
         """
         [NEW] Administrative Insights 
         Reuses existing aggregation methods.
@@ -886,7 +886,11 @@ class AnalyticsService:
             insights['top_category_events'] = top_cat_data['count']
             
         # 4. Verification Efficiency
-        kpis = AnalyticsService.get_institution_kpis(filters)
+        if precomputed_kpis:
+             kpis = precomputed_kpis
+        else:
+             kpis = AnalyticsService.get_institution_kpis(filters)
+             
         insights['verification_efficiency'] = kpis['verified_rate']
 
         elapsed = (time.time() - start_time) * 1000
@@ -1256,3 +1260,25 @@ class AnalyticsService:
         results = q.order_by(StudentActivity.created_at.desc()).all()
         
         return [AnalyticsService._serialize_student_item(item, include_certificate=True) for item in results]
+
+    @staticmethod
+    def get_dashboard_composite(filters=None):
+        """
+        [NEW] COMPOSITE ENDPOINT
+        Aggregates all dashboard data in a single request to prevent Gunicorn timeouts
+        caused by sequential processing on single-worker Render instances.
+        """
+        # Fetch sequential but reuse logic
+        kpis = AnalyticsService.get_institution_kpis(filters)
+        insights = AnalyticsService.get_admin_insights(filters, precomputed_kpis=kpis)
+        distribution = AnalyticsService.get_event_distribution(filters)
+        participation = AnalyticsService.get_department_participation(filters)
+        trend = AnalyticsService.get_yearly_trend(filters)
+        
+        return {
+            "kpis": kpis,
+            "insights": insights,
+            "distribution": distribution,
+            "participation": participation,
+            "trend": trend
+        }
