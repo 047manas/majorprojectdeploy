@@ -1,0 +1,4 @@
+full_name,email,role,institution_id,department,position,password
+John Doe,john@example.com,student,STUDE001,CS,,Student123!
+Jane Smith,jane@example.com,faculty,FAC001,CS,HOD,Faculty123!
+Bob Wilson,bob@example.com,student,STUDE002,ME,,User123!
