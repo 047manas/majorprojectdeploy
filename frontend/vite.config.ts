@@ -19,5 +19,17 @@ export default defineConfig({
                 secure: false,
             }
         }
+    },
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks: {
+                    vendor: ['react', 'react-dom', 'react-router-dom'],
+                    ui: ['@radix-ui/react-dialog', '@radix-ui/react-select', 'lucide-react', 'framer-motion'],
+                    charts: ['recharts'],
+                    utils: ['axios', 'date-fns', 'jspdf', 'jspdf-autotable']
+                }
+            }
+        }
     }
 })
