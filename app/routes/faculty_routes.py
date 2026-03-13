@@ -726,6 +726,11 @@ def delete_event():
                 )
                 db.session.add(notif)
                 notified_student_ids.add(act.student_id)
+            
+            # Audit Cleanup: Remove any "Certificate Upload Required" or "Verification Required" notifications
+            Notification.query.filter(
+                Notification.action_data.contains(f'"activity_id": {act.id}')
+            ).delete(synchronize_session=False)
         else:
             # Student already uploaded a certificate! Do NOT delete.
             # Convert to a standard off-campus activity and re-route to HOD
@@ -970,7 +975,7 @@ def get_notifications():
                 if activity_id:
                     linked_activity = StudentActivity.query.get(activity_id)
                     # Completed if activity is reviewed (not pending) or removed
-                    if not linked_activity or linked_activity.status not in ['pending', 'pending_upload']:
+                    if not linked_activity or linked_activity.is_deleted or linked_activity.status not in ['pending', 'pending_upload']:
                         is_completed = True
                         action_url = None
             except (json.JSONDecodeError, ValueError):
