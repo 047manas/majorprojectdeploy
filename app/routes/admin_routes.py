@@ -160,22 +160,12 @@ def delete_user(user_id):
     if user.role == 'admin' and user.email == 'admin@example.com':
         return jsonify({'error': 'Cannot delete default admin.'}), 400
     
-    # Create notification before marking as deleted/inactive
-    notif = Notification(
-        user_id=user.id,
-        title="Account Deleted",
-        message=f"Your account has been deleted by an administrator. Reason: {reason}",
-        type='warning',
-        action_url=None
-    )
-    db.session.add(notif)
-    
-    user.is_deleted = True
-    user.is_active = False
-    user.deletion_reason = reason
+    # Hard delete: remove record from database
+    # Cascading deletes in models.py handle notifications and student roles
+    db.session.delete(user)
     db.session.commit()
     
-    return jsonify({'success': True, 'message': f"User {user.email} soft-deleted."})
+    return jsonify({'success': True, 'message': f"User {user.email} permanently deleted."})
 
 # --- Activity Types ---
 @admin_bp.route('/activity-types', methods=['GET', 'POST'])
@@ -316,19 +306,8 @@ def admin_delete_activity(activity_id):
         if not is_incharge:
              return jsonify({'error': 'Unauthorized: You are not the In-Charge for this activity category.'}), 403
 
-    # Create notification for student
-    notif = Notification(
-        user_id=activity.student_id,
-        title="Activity Deleted",
-        message=f"Your activity '{activity.title}' has been deleted by {current_user.full_name}. Reason: {reason}",
-        type='warning',
-        action_url='/student/portfolio'
-    )
-    db.session.add(notif)
-
-    # Soft delete: don't actually remove file or record, just mark as deleted
-    activity.is_deleted = True
-    activity.deletion_reason = reason
+    # Hard delete: remove activity record from database
+    db.session.delete(activity)
     db.session.commit()
     
-    return jsonify({'success': True, 'message': 'Student activity deleted successfully (Soft Delete)'})
+    return jsonify({'success': True, 'message': 'Student activity permanently deleted.'})
