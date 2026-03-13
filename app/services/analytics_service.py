@@ -480,8 +480,10 @@ class AnalyticsService:
         total_submissions_q = AnalyticsService._apply_filters(total_submissions_q, filters)
         total_submissions = total_submissions_q.scalar() or 0
         
-        # 4. Unique Students
-        unique_students = base_q.with_entities(func.count(distinct(StudentActivity.student_id))).scalar() or 0
+        # 4. Unique Students (Only include students)
+        unique_students = base_q.with_entities(func.count(distinct(StudentActivity.student_id)))\
+            .join(User, StudentActivity.student_id == User.id)\
+            .filter(User.role == 'student').scalar() or 0
         
         # 5. Engagement Rate
         engagement_rate = round((unique_students / total_students * 100), 1) if total_students > 0 else 0
