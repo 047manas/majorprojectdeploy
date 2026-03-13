@@ -17,7 +17,7 @@ class User(UserMixin, db.Model):
     
     # Extended Fields
     full_name = db.Column(db.String(100), nullable=False, default="Unknown")
-    department = db.Column(db.String(100), nullable=True) # For Faculty AND Students
+    department = db.Column(db.String(100), nullable=True, index=True) # For Faculty AND Students
     batch_year = db.Column(db.String(20), nullable=True) # Legacy field found in DB
     
     # Generic ID: Roll Number (Student) or Employee ID (Faculty)
@@ -27,7 +27,7 @@ class User(UserMixin, db.Model):
     is_deleted = db.Column(db.Boolean, default=False)
     deletion_reason = db.Column(db.Text, nullable=True)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     
     def __repr__(self):
         return f'<User {self.email}>'
@@ -49,7 +49,7 @@ class Notification(db.Model):
     is_read = db.Column(db.Boolean, default=False)
     action_url = db.Column(db.String(500), nullable=True)  # Frontend route to navigate to
     action_data = db.Column(db.Text, nullable=True)  # JSON string with pre-fill data
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     
     # Relationship
     user = db.relationship('User', backref=db.backref('notifications', lazy=True, cascade="all, delete-orphan"))
@@ -118,7 +118,7 @@ class StudentActivity(db.Model):
     deletion_reason = db.Column(db.Text, nullable=True)
     
     # Campus Type & Attendance
-    campus_type = db.Column(db.String(20), nullable=True, default='off_campus')
+    campus_type = db.Column(db.String(20), nullable=True, default='off_campus', index=True)
     is_attendance_uploaded = db.Column(db.Boolean, default=False)
     attendance_uploaded_by = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     
@@ -126,7 +126,7 @@ class StudentActivity(db.Model):
     assigned_reviewer_id = db.Column(db.Integer, db.ForeignKey('users.id', ondelete='SET NULL'), nullable=True)
     faculty_comment = db.Column(db.Text, nullable=True)
     
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
     prev_activity_id = db.Column(db.Integer, db.ForeignKey('student_activities.id'), nullable=True)
