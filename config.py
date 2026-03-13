@@ -19,6 +19,7 @@ class Config:
     # CORS
     _raw_origins = os.getenv('CORS_ALLOWED_ORIGINS', os.getenv('ALLOWED_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173'))
     ALLOWED_ORIGINS = [o.strip().rstrip('/') for o in _raw_origins.split(',') if o.strip()]
+    FRONTEND_URL = ALLOWED_ORIGINS[0] if ALLOWED_ORIGINS else 'http://localhost:5173'
 
     # Session/Cookie Settings
     SESSION_COOKIE_HTTPONLY = True

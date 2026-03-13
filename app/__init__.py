@@ -21,8 +21,9 @@ def unauthorized_api():
     if request.path.startswith('/api/'):
         return jsonify({'success': False, 'error': 'Authentication required'}), 401
     # For non-API requests, redirect to frontend login
-    from flask import redirect
-    return redirect("http://localhost:5173/login")
+    from flask import redirect, current_app
+    frontend_url = current_app.config.get('FRONTEND_URL', 'http://localhost:5173')
+    return redirect(f"{frontend_url}/login")
 
 def create_app(config_class=Config):
     app = Flask(__name__)
