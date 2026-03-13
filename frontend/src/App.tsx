@@ -51,7 +51,7 @@ function App() {
     return (
         <AuthProvider>
             <TooltipProvider>
-                <Toaster position="top-right" richColors />
+                <Toaster position="top-right" richColors closeButton duration={3000} />
                 <Routes>
                     {/* Public Routes */}
                     <Route path="/login" element={<Login />} />
