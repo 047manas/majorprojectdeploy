@@ -994,6 +994,27 @@ def get_notifications():
                         action_url = None
             except (ValueError, Exception):
                 pass
+        
+        # Check 3: Legacy Fallback for "ghost" notifications (No metadata)
+        if not is_completed and "awaiting your verification" in n.message:
+            import re
+            # Matches: Attendance certificate for '[TITLE]' uploaded by student [ROLL] is awaiting your verification.
+            match = re.search(r"certificate for '(.+?)' uploaded by student (\w+)", n.message)
+            if match:
+                legacy_title = match.group(1)
+                legacy_roll = match.group(2)
+                
+                # Check if this specific activity is already reviewed
+                from app.models import User as Student
+                legacy_activity = StudentActivity.query.join(Student, StudentActivity.student_id == Student.id).filter(
+                    StudentActivity.title == legacy_title,
+                    Student.institution_id == legacy_roll,
+                    StudentActivity.status.notin_(['pending', 'pending_upload']),
+                    StudentActivity.is_deleted == False
+                ).first()
+                if legacy_activity:
+                    is_completed = True
+                    action_url = None
 
         data.append({
             'id': n.id,

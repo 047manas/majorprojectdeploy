@@ -487,6 +487,23 @@ def get_notifications():
   # Make non-clickable
             except (json.JSONDecodeError, ValueError):
                 pass
+        
+        # Check 2: Legacy Fallback for "ghost" notifications (No metadata)
+        if not is_completed and "Certificate Upload Required" in n.title:
+            import re
+            # Matches: You participated in "[TITLE]" (In-Campus). Please upload your certificate...
+            match = re.search(r'participated in "(.+?)"', n.message)
+            if match:
+                legacy_title = match.group(1)
+                # Check if student already uploaded for this event
+                legacy_activity = StudentActivity.query.filter_by(
+                    student_id=current_user.id,
+                    title=legacy_title,
+                    is_deleted=False
+                ).first()
+                if legacy_activity and legacy_activity.status != 'pending_upload':
+                    is_completed = True
+                    action_url = None
 
         data.append({
             'id': n.id,
