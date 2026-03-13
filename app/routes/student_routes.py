@@ -497,7 +497,7 @@ def get_notifications():
                 if activity_id:
                     linked_activity = StudentActivity.query.get(activity_id)
                     # Completed if activity is reviewed (not pending/not pending_upload) or removed
-                    if not linked_activity or linked_activity.is_deleted or linked_activity.status not in ['pending', 'pending_upload']:
+                    if not linked_activity or linked_activity.is_deleted or linked_activity.status != 'pending_upload':
                         is_completed = True
                         action_url = None
   # Make non-clickable
