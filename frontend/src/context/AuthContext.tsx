@@ -38,6 +38,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     useEffect(() => {
         fetchUser();
+        
+        // Fail-safe: Ensure loading is disabled after a timeout even if request hangs
+        const timeout = setTimeout(() => {
+            setLoading(false);
+        }, 5000);
+
+        return () => clearTimeout(timeout);
     }, []);
 
     const login = () => {
