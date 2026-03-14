@@ -34,7 +34,7 @@ def users_dashboard():
 @role_required('admin')
 def create_user():
     data = request.get_json()
-    email = data.get('email')
+    email = data.get('email', '').strip().lower()
     password = data.get('password')
     role = data.get('role')
     position = data.get('position')
@@ -94,7 +94,7 @@ def edit_user(user_id):
     
     data = request.get_json()
     full_name = data.get('full_name')
-    email = data.get('email')
+    email = data.get('email', '').strip().lower()
     role = data.get('role')
     position = data.get('position')
     department = data.get('department')
