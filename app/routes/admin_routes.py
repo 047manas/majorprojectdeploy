@@ -4,6 +4,7 @@ from flask_login import login_required, current_user
 from app.models import User, db, ActivityType, StudentActivity, Notification
 from app.utils.decorators import role_required
 from werkzeug.security import generate_password_hash
+from app.services.storage_service import storage_service
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -338,6 +339,10 @@ def admin_delete_activity(activity_id):
     # Mark the activity as deleted in the DB instead of hard delete if we want to preserve audit trail?
     # Actually, the user wants it "deleted from list" but notifications to stay.
     
+    # Cleanup Cloud Storage
+    if activity.certificate_file:
+        storage_service.delete_file(activity.certificate_file)
+        
     db.session.delete(activity)
     db.session.commit()
     

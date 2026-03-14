@@ -398,6 +398,9 @@ def edit_activity(activity_id):
                         os.remove(old_path)
                     except Exception as e:
                         current_app.logger.error(f"Error deleting old certificate: {e}")
+                
+                # Cleanup from Cloud Storage
+                storage_service.delete_file(activity.certificate_file)
             
             # Save new file
             filename = f"{current_user.institution_id}_{uuid.uuid4().hex}_{secure_filename(file.filename)}"
@@ -473,6 +476,9 @@ def delete_activity(activity_id):
                 os.remove(filepath)
             except Exception as e:
                 current_app.logger.error(f"Error deleting certificate file: {e}")
+        
+        # Cleanup from Cloud Storage
+        storage_service.delete_file(activity.certificate_file)
             
     # Notify assigned faculty of withdrawal
     if activity.assigned_reviewer_id:

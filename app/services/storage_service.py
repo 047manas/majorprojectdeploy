@@ -40,11 +40,20 @@ class StorageService:
             return None, False
 
         try:
+            # Guess MIME type for proper browser rendering (fixing raw text PDF issue)
+            import filetype
+            kind = filetype.guess(file_path)
+            content_type = kind.mime if kind else 'application/octet-stream'
+            
             with open(file_path, 'rb') as f:
                 res = self.client.storage.from_(self.bucket).upload(
                     path=destination_path,
                     file=f,
-                    file_options={"cache-control": "3600", "upsert": "true"}
+                    file_options={
+                        "cache-control": "3600", 
+                        "upsert": "true",
+                        "content-type": content_type
+                    }
                 )
             
             # Get Public URL
@@ -53,6 +62,21 @@ class StorageService:
         except Exception as e:
             logging.error(f"Supabase Upload Error: {e}")
             return None, False
+
+    def delete_file(self, filename):
+        """
+        Removes a file from Supabase Storage.
+        """
+        if not self.client or not filename:
+            return False
+            
+        try:
+            self.client.storage.from_(self.bucket).remove([filename])
+            logging.info(f"Deleted file from Supabase: {filename}")
+            return True
+        except Exception as e:
+            logging.error(f"Supabase Delete Error: {e}")
+            return False
 
     def get_file_url(self, filename):
         """
