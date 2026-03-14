@@ -421,7 +421,10 @@ def edit_activity(activity_id):
             
             # Save new file
             filename = f"{current_user.institution_id}_{uuid.uuid4().hex}_{secure_filename(file.filename)}"
-            filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+            upload_folder = current_app.config['UPLOAD_FOLDER']
+            os.makedirs(upload_folder, exist_ok=True)
+            
+            filepath = os.path.join(upload_folder, filename)
             file.save(filepath)
             
             # --- Verification Logic for Re-upload ---
