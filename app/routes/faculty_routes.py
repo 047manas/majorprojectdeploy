@@ -10,6 +10,7 @@ import json
 from datetime import datetime
 from app.utils.audit import add_audit_event
 import pandas as pd
+from app.services.storage_service import storage_service
 
 faculty_bp = Blueprint('faculty', __name__)
 
@@ -661,6 +662,9 @@ def remove_student_from_event(activity_id):
         return jsonify({'error': 'Only the event in-charge can modify the roster.'}), 403
 
     # Soft delete
+    if activity.certificate_file:
+        storage_service.delete_file(activity.certificate_file)
+        
     activity.is_deleted = True
     activity.deletion_reason = f'Removed from roster by {current_user.full_name}'
     db.session.commit()
@@ -711,6 +715,9 @@ def delete_event():
 
     for act in activities:
         if act.status == 'pending_upload':
+            if act.certificate_file:
+                storage_service.delete_file(act.certificate_file)
+                
             act.is_deleted = True
             act.deletion_reason = f"Event removed by {current_user.full_name}"
             deleted_count += 1

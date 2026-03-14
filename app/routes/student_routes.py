@@ -325,6 +325,23 @@ def serve_upload(filename):
     # Check if this file exists in Cloud Storage first
     cloud_url = storage_service.get_file_url(filename)
     if cloud_url:
+        # Fix: For existing files with wrong metadata (serving as text), 
+        # we proxy the request for PDFs to force the correct header.
+        if filename.lower().endswith('.pdf'):
+            try:
+                import requests
+                # Proxy the file from Supabase
+                proxied_resp = requests.get(cloud_url, timeout=5)
+                if proxied_resp.status_code == 200:
+                    response = make_response(proxied_resp.content)
+                    response.headers['Content-Type'] = 'application/pdf'
+                    # Allow browser to cache for performance
+                    response.headers['Cache-Control'] = 'public, max-age=3600'
+                    return response
+            except Exception as e:
+                current_app.logger.error(f"Failed to proxy PDF from cloud: {e}")
+        
+        # Fallback to direct redirect for non-PDFs or failed proxy
         return redirect(cloud_url)
 
     token = request.args.get('token')
