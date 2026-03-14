@@ -579,15 +579,21 @@ def get_notifications():
                 activity_id = action_info.get('activity_id')
                 if activity_id:
                     linked_activity = StudentActivity.query.get(activity_id)
-                    # Completed if activity is reviewed (not pending/not pending_upload) or removed
-                    if not linked_activity or linked_activity.is_deleted or linked_activity.status != 'pending_upload':
+                    # Completed if activity is successfully reviewed (approval states) or removed
+                    # Rejections and pending_uploads are NOT completed as they still require action.
+                    if not linked_activity or linked_activity.is_deleted:
+                        is_completed = True
+                    elif linked_activity.student_id != current_user.id:
+                        is_completed = True
+                        action_url = None
+                    elif linked_activity.status not in ('pending_upload', 'rejected'):
                         is_completed = True
                         action_url = None
                     else:
-                        # Ensure student_id matches for safety
-                        if linked_activity.student_id != current_user.id:
-                             is_completed = True
-                             action_url = None
+                        is_completed = False
+                        # Ensure we have a valid action_url if not completed
+                        if not action_url:
+                            action_url = n.action_url
   # Make non-clickable
             except (json.JSONDecodeError, ValueError):
                 pass
@@ -620,9 +626,10 @@ def get_notifications():
                         action_url = None
         
         # Check 3: If the notification title itself implies completion
-        if "Upload Successful" in n.title or "Verification is done" in n.message:
-            is_completed = True
-            action_url = None
+        if not is_completed and n.type not in ('warning', 'error'):
+            if "Upload Successful" in n.title or "Verification is done" in n.message:
+                is_completed = True
+                action_url = None
 
         data.append({
             'id': n.id,

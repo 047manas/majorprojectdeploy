@@ -256,7 +256,7 @@ def reject_request(act_id):
         message=f'Verification is done: Your activity "{activity.title}" was not approved by {current_user.full_name}.' + (f' Reason: {comment}' if comment else ''),
         type='warning',
         action_url='/student/upload',
-        action_data=json.dumps({'rejected_activity_id': activity.id, 'title': activity.title})
+        action_data=json.dumps({'activity_id': activity.id, 'title': activity.title, 'prefill': True})
     )
     db.session.add(notif)
 
@@ -516,11 +516,11 @@ def get_event_students(title, start_date):
             can_edit = True
             query = query.filter_by(attendance_uploaded_by=current_user.id)
         elif current_user.position and current_user.position.lower() == 'hod' and current_user.department:
-            # HOD can VIEW department students, but NOT edit
+            # HOD can VIEW and EDIT department students records for in-campus events
             query = query.join(User, StudentActivity.student_id == User.id).filter(
                 User.department == current_user.department
             )
-            can_edit = False
+            can_edit = True
         else:
             query = query.filter_by(attendance_uploaded_by=current_user.id)
 

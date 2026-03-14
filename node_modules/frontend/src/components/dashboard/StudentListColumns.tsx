@@ -107,7 +107,8 @@ export const studentColumns: ColumnDef<any>[] = [
             // Robust check: handling number/string mismatch and case sensitivity
             const isAdmin = user?.role?.toLowerCase() === 'admin';
             const isFaculty = user?.role?.toLowerCase() === 'faculty';
-            const isOwner = String(activity.faculty_incharge_id) === String(user?.id);
+            const isOwner = String(activity.faculty_incharge_id) === String(user?.id) || 
+                          String(activity.attendance_uploaded_by) === String(user?.id);
 
             const canDelete = isAdmin || (isFaculty && isOwner);
 

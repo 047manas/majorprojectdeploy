@@ -5,6 +5,7 @@ from app.models import User, db, ActivityType, StudentActivity, Notification
 from app.utils.decorators import role_required
 from werkzeug.security import generate_password_hash
 from app.services.storage_service import storage_service
+from app.verification import hashstore
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -344,6 +345,13 @@ def admin_delete_activity(activity_id):
         Notification.action_data.contains(f'"activity_id": {activity.id}')
     ).delete(synchronize_session=False)
         
+    # Cleanup storage if file exists
+    if activity.certificate_file:
+        try:
+            storage_service.delete_file(activity.certificate_file)
+        except Exception as e:
+            current_app.logger.error(f"Failed to delete file from storage during admin delete: {e}")
+
     activity.is_deleted = True
     activity.deletion_reason = reason
     db.session.commit()

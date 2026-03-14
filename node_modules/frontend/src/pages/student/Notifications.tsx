@@ -201,7 +201,7 @@ const Notifications = () => {
                                                     View <ArrowRight className="h-3 w-3" />
                                                 </span>
                                             )}
-                                            {n.is_completed && (
+                                            {n.is_completed && n.type === 'success' && (
                                                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                                                     Certificate Uploaded ✓
                                                 </span>
