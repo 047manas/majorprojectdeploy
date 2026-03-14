@@ -8,8 +8,6 @@ import { Loader2, Users, CheckCircle2, AlertCircle, Clock, Plus, Trash2, UserPlu
 import { toast } from 'sonner';
 import api from '@/services/api';
 
-import { ReasonModal } from '@/components/dashboard/ReasonModal';
-
 interface EventDetailsModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -49,12 +47,6 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
     const [editStartDate, setEditStartDate] = useState('');
     const [editEndDate, setEditEndDate] = useState('');
     const [savingDetails, setSavingDetails] = useState(false);
-
-    // Modal states for ReasonModal
-    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
-    const [activeActivity, setActiveActivity] = useState<number | null>(null);
-    const [activeActivityName, setActiveActivityName] = useState<string>('');
 
     useEffect(() => {
         if (isOpen && event && event.start_date) {
@@ -126,44 +118,18 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
         }
     };
 
-    const handleRemoveStudentClick = (activityId: number, studentName: string) => {
-        setActiveActivity(activityId);
-        setActiveActivityName(studentName);
-        setIsDeleteModalOpen(true);
-    };
-
-    const confirmRemoveStudent = async (reason: string) => {
-        if (!activeActivity) return;
-        setRemovingId(activeActivity);
+    const handleRemoveStudent = async (activityId: number) => {
+        if (!window.confirm('Remove this student from the event roster?')) return;
+        setRemovingId(activityId);
         try {
-            await api.delete(`/faculty/event/remove-student/${activeActivity}`);
-            toast.success('Student removed from roster');
+            await api.delete(`/faculty/event/remove-student/${activityId}`);
+            toast.success('Removed from roster');
             fetchStudents();
             onRosterChanged?.();
         } catch (err: any) {
             toast.error(err.error || 'Failed to remove student');
-            throw err;
         } finally {
             setRemovingId(null);
-        }
-    };
-
-    const handleUndoApprovalClick = (activityId: number, studentName: string) => {
-        setActiveActivity(activityId);
-        setActiveActivityName(studentName);
-        setIsRejectModalOpen(true);
-    };
-
-    const confirmUndoApproval = async (reason: string) => {
-        if (!activeActivity) return;
-        try {
-            await api.post(`/faculty/reject/${activeActivity}`, { faculty_comment: reason });
-            toast.success("Approval undone. Record set to rejected.");
-            fetchStudents();
-            onRosterChanged?.();
-        } catch (err: any) {
-            toast.error(err.error || "Failed to undo approval");
-            throw err;
         }
     };
 
@@ -301,8 +267,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
 
                 {/* Main Content Area */}
                 <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
-                    {/* Bulk Actions & Stats */}
-                    {!isEditingEvent && !loading && students.length > 0 && (
+                    {!isEditingEvent && !loading && (
                         <div className="flex flex-wrap items-center gap-6 mb-6">
                             <div className="flex gap-4">
                                 <div className="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-900/30">
@@ -334,52 +299,46 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
                         </div>
                     )}
 
-                    {/* Edit Event Details Form */}
                     {isEditingEvent && (
-                        <div className="mb-8 p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+                        <div className="mb-8 p-5 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
                             <div className="flex items-center justify-between mb-6">
-                                <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2.5">
-                                    <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg">
-                                        <Edit2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                                    </div>
-                                    Event Identity Details
+                                <h4 className="text-base font-bold flex items-center gap-2.5">
+                                    <Edit2 className="h-4 w-4 text-indigo-500" />
+                                    Edit Event Details
                                 </h4>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => setIsEditingEvent(false)}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsEditingEvent(false)}>
                                     <X className="h-4 w-4" />
                                 </Button>
                             </div>
                             <div className="grid grid-cols-2 gap-5">
-                                <div className="space-y-2.5 col-span-2">
-                                    <Label className="text-xs uppercase tracking-wider font-bold text-slate-500">Official Title</Label>
-                                    <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} className="h-10" />
+                                <div className="space-y-2 col-span-2">
+                                    <Label className="text-xs font-bold text-slate-500 uppercase">Event Title</Label>
+                                    <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} />
                                 </div>
-                                <div className="space-y-2.5 col-span-2">
-                                    <Label className="text-xs uppercase tracking-wider font-bold text-slate-500">Issued By (Organization)</Label>
+                                <div className="space-y-2 col-span-2">
+                                    <Label className="text-xs font-bold text-slate-500 uppercase">Issued By</Label>
                                     <Input value={editIssuer} onChange={e => setEditIssuer(e.target.value)} />
                                 </div>
-                                <div className="space-y-2.5">
-                                    <Label className="text-xs uppercase tracking-wider font-bold text-slate-500">Starts On</Label>
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold text-slate-500 uppercase">Start Date</Label>
                                     <Input type="date" value={editStartDate} onChange={e => setEditStartDate(e.target.value)} />
                                 </div>
-                                <div className="space-y-2.5">
-                                    <Label className="text-xs uppercase tracking-wider font-bold text-slate-500">Ends On</Label>
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold text-slate-500 uppercase">End Date</Label>
                                     <Input type="date" value={editEndDate} onChange={e => setEditEndDate(e.target.value)} />
                                 </div>
                             </div>
-                            <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100 dark:border-slate-800">
+                            <div className="flex justify-end gap-3 mt-8 pt-4 border-t">
                                 <Button variant="ghost" onClick={() => setIsEditingEvent(false)}>Cancel</Button>
-                                <Button className="min-w-[140px] bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleUpdateEventDetails} disabled={savingDetails}>
-                                    {savingDetails ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                                <Button className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleUpdateEventDetails} disabled={savingDetails}>
                                     Save Updates
                                 </Button>
                             </div>
                         </div>
                     )}
 
-                    {/* Attendance Controller */}
                     {!isEditingEvent && (
                         <div className="space-y-6">
-                            {/* Add Student Input */}
                             {canEdit && (
                                 <div className="flex items-center gap-3 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm pr-3">
                                     <div className="pl-4">
@@ -394,38 +353,37 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
                                     />
                                     <Button
                                         size="sm"
-                                        className="h-9 px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-600/10"
+                                        className="h-9 px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl"
                                         onClick={handleAddStudent}
                                         disabled={addLoading || !addRoll.trim()}
                                     >
-                                        {addLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Attendee'}
+                                        {addLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add student'}
                                     </Button>
                                 </div>
                             )}
 
-                            {/* List Content */}
-                            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-950">
                                 {loading ? (
-                                    <div className="flex flex-col items-center justify-center py-20 bg-slate-50/30 dark:bg-slate-900/30">
+                                    <div className="flex flex-col items-center justify-center py-20">
                                         <Loader2 className="h-10 w-10 animate-spin text-indigo-500 mb-4 opacity-50" />
-                                        <p className="text-sm font-medium text-slate-400 uppercase tracking-widest">Loading Roster...</p>
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Loading Roster...</p>
                                     </div>
                                 ) : (
                                     <Table>
-                                        <TableHeader className="bg-slate-100/50 dark:bg-slate-900/80">
-                                            <TableRow className="hover:bg-transparent border-none">
-                                                <TableHead className="h-12 font-bold px-6 text-slate-500 uppercase text-[10px] tracking-widest">Attendee</TableHead>
-                                                <TableHead className="h-12 font-bold px-4 text-slate-500 uppercase text-[10px] tracking-widest">Department</TableHead>
-                                                <TableHead className="h-12 font-bold px-4 text-slate-500 uppercase text-[10px] tracking-widest text-right">Status</TableHead>
-                                                <TableHead className="h-12 font-bold px-6 text-slate-500 uppercase text-[10px] tracking-widest text-center w-36">Actions</TableHead>
+                                        <TableHeader className="bg-slate-50 dark:bg-slate-900/50">
+                                            <TableRow>
+                                                <TableHead className="px-6 font-bold text-slate-500 uppercase text-[10px] tracking-widest">Attendee</TableHead>
+                                                <TableHead className="px-4 font-bold text-slate-500 uppercase text-[10px] tracking-widest">Department</TableHead>
+                                                <TableHead className="px-4 font-bold text-slate-500 uppercase text-[10px] tracking-widest text-right">Status</TableHead>
+                                                <TableHead className="px-6 font-bold text-slate-500 uppercase text-[10px] tracking-widest text-center w-36">Actions</TableHead>
                                             </TableRow>
                                         </TableHeader>
-                                        <TableBody className="bg-white dark:bg-slate-950">
+                                        <TableBody>
                                             {students.map((student) => (
-                                                <TableRow key={student.activity_id} className="group border-slate-100 dark:border-slate-900 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
+                                                <TableRow key={student.activity_id} className="group border-slate-100 dark:border-slate-900">
                                                     <TableCell className="px-6 py-4">
                                                         <div className="flex flex-col">
-                                                            <span className="font-bold text-slate-900 dark:text-white leading-tight">{student.student_name}</span>
+                                                            <span className="font-bold text-slate-900 dark:text-white">{student.student_name}</span>
                                                             <span className="text-xs text-slate-400 font-medium">{student.student_roll}</span>
                                                         </div>
                                                     </TableCell>
@@ -436,12 +394,12 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
                                                         <StatusBadge status={student.status} />
                                                     </TableCell>
                                                     <TableCell className="px-6 py-4">
-                                                        <div className="flex items-center justify-center gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity">
+                                                        <div className="flex items-center justify-center gap-1.5">
                                                             {student.status !== 'pending_upload' && student.certificate_file && (
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="h-8 w-8 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+                                                                    className="h-8 w-8 text-indigo-500 hover:text-indigo-700"
                                                                     onClick={() => window.open(api.defaults.baseURL + '/public/certificate/' + student.certificate_file, '_blank')}
                                                                     title="View Document"
                                                                 >
@@ -449,29 +407,16 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
                                                                 </Button>
                                                             )}
                                                             {canEdit && (
-                                                                <>
-                                                                    {student.status !== 'pending_upload' && student.status !== 'rejected' && (
-                                                                        <Button
-                                                                            variant="ghost"
-                                                                            size="icon"
-                                                                            className="h-8 w-8 text-amber-500 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20"
-                                                                            onClick={() => handleUndoApprovalClick(student.activity_id, student.student_name)}
-                                                                            title="Reject Submission"
-                                                                        >
-                                                                            <X className="h-4 w-4" />
-                                                                        </Button>
-                                                                    )}
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20"
-                                                                        onClick={() => handleRemoveStudentClick(student.activity_id, student.student_name)}
-                                                                        disabled={removingId === student.activity_id}
-                                                                        title="Remove from Roster"
-                                                                    >
-                                                                        {removingId === student.activity_id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                                                                    </Button>
-                                                                </>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                                                                    onClick={() => handleRemoveStudent(student.activity_id)}
+                                                                    disabled={removingId === student.activity_id}
+                                                                    title="Remove from Roster"
+                                                                >
+                                                                    {removingId === student.activity_id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                                                </Button>
                                                             )}
                                                         </div>
                                                     </TableCell>
@@ -484,31 +429,6 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
                         </div>
                     )}
                 </div>
-
-                {/* Overlaid Reason Modals */}
-                <ReasonModal
-                    isOpen={isDeleteModalOpen}
-                    onClose={() => { setIsDeleteModalOpen(false); setActiveActivity(null); }}
-                    onConfirm={confirmRemoveStudent}
-                    title="Remove from Roster"
-                    description={`Delete "${activeActivityName}" from the roster? This clears their participation record and any uploaded certificate.`}
-                    variant="destructive"
-                    icon="delete"
-                    confirmLabel="Remove Attendee"
-                    placeholder="Reason (e.g. Mistaken entry, absent student)..."
-                />
-
-                <ReasonModal
-                    isOpen={isRejectModalOpen}
-                    onClose={() => { setIsRejectModalOpen(false); setActiveActivity(null); }}
-                    onConfirm={confirmUndoApproval}
-                    title="Reject Submission"
-                    description={`Invalidate "${activeActivityName}"'s certificate? They will be notified to re-upload while remaining on the roster.`}
-                    variant="warning"
-                    icon="reject"
-                    confirmLabel="Reject & Notify Student"
-                    placeholder="Describe the issue (e.g. Blurry photo, incorrect dates)..."
-                />
             </DialogContent>
         </Dialog>
     );

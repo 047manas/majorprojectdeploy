@@ -1,5 +1,5 @@
 import { ColumnDef } from '@tanstack/react-table';
-import { FileText, Download, Trash2 } from 'lucide-react';
+import { FileText, Download, Trash2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 
@@ -100,6 +100,24 @@ export const studentColumns: ColumnDef<any>[] = [
 
             return (
                 <div className="flex items-center gap-2">
+                    {/* Reject Action */}
+                    {activity.status !== 'pending_upload' && activity.status !== 'rejected' && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-amber-500 hover:text-amber-700 hover:bg-amber-50 gap-1.5"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                meta.onReject?.(activity);
+                            }}
+                            title="Undo Approval / Reject"
+                        >
+                            <XCircle className="h-3.5 w-3.5" />
+                            <span className="text-xs font-medium">Reject</span>
+                        </Button>
+                    )}
+
+                    {/* Delete Action */}
                     <Button
                         variant="ghost"
                         size="sm"

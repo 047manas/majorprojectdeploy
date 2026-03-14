@@ -29,9 +29,10 @@ const GlobalStudentModal: React.FC<GlobalStudentModalProps> = ({ isOpen, onClose
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
 
-    // Deletion Modal State
+    // Modal State
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
-    const [activityToDelete, setActivityToDelete] = useState<any>(null);
+    const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+    const [activityToProcess, setActivityToProcess] = useState<any>(null);
 
     // Debounce Search
     useEffect(() => {
@@ -59,21 +60,41 @@ const GlobalStudentModal: React.FC<GlobalStudentModalProps> = ({ isOpen, onClose
     });
 
     const handleDeleteActivity = (activity: any) => {
-        setActivityToDelete(activity);
+        setActivityToProcess(activity);
         setIsDeleteModalOpen(true);
     };
 
+    const handleRejectActivity = (activity: any) => {
+        setActivityToProcess(activity);
+        setIsRejectModalOpen(true);
+    };
+
     const confirmDeleteActivity = async (reason: string) => {
-        if (!activityToDelete) return;
+        if (!activityToProcess) return;
         try {
-            await api.post(`/admin/student-activities/delete/${activityToDelete.id}`, { reason });
+            await api.post(`/admin/student-activities/delete/${activityToProcess.id}`, { reason });
             queryClient.invalidateQueries({ queryKey: ['global-students'] });
             queryClient.invalidateQueries({ queryKey: ['students'] });
             queryClient.invalidateQueries({ queryKey: ['kpi-summary'] });
             toast.success("Activity deleted.");
         } catch (error: any) {
             toast.error(error.error || "Deletion failed");
-            throw error; // Rethrow so ReasonModal knows it failed
+            throw error;
+        }
+    };
+
+    const confirmRejectActivity = async (reason: string) => {
+        if (!activityToProcess) return;
+        try {
+            // Use the faculty reject endpoint which supports reason
+            await api.post(`/faculty/reject/${activityToProcess.id}`, { faculty_comment: reason });
+            queryClient.invalidateQueries({ queryKey: ['global-students'] });
+            queryClient.invalidateQueries({ queryKey: ['students'] });
+            queryClient.invalidateQueries({ queryKey: ['kpi-summary'] });
+            toast.success("Approval undone. Activity rejected.");
+        } catch (error: any) {
+            toast.error(error.error || "Rejection failed");
+            throw error;
         }
     };
 
@@ -115,6 +136,7 @@ const GlobalStudentModal: React.FC<GlobalStudentModalProps> = ({ isOpen, onClose
                         options={{
                             meta: {
                                 onDelete: (user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'faculty') ? handleDeleteActivity : undefined,
+                                onReject: (user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'faculty') ? handleRejectActivity : undefined,
                                 user
                             }
                         }}
@@ -125,15 +147,30 @@ const GlobalStudentModal: React.FC<GlobalStudentModalProps> = ({ isOpen, onClose
                     isOpen={isDeleteModalOpen}
                     onClose={() => {
                         setIsDeleteModalOpen(false);
-                        setActivityToDelete(null);
+                        setActivityToProcess(null);
                     }}
                     onConfirm={confirmDeleteActivity}
                     title="Delete Activity Record"
-                    description={`Are you sure you want to delete the activity "${activityToDelete?.title}" for student "${activityToDelete?.student_name}"? This action cannot be undone.`}
+                    description={`Are you sure you want to delete the activity "${activityToProcess?.title}" for student "${activityToProcess?.student_name}"? This action cannot be undone.`}
                     variant="destructive"
                     icon="delete"
                     confirmLabel="Delete Permanently"
                     placeholder="Provide a reason for this deletion (e.g. Fraudulent submission, duplicate entry)..."
+                />
+
+                <ReasonModal
+                    isOpen={isRejectModalOpen}
+                    onClose={() => {
+                        setIsRejectModalOpen(false);
+                        setActivityToProcess(null);
+                    }}
+                    onConfirm={confirmRejectActivity}
+                    title="Undo Approval / Reject"
+                    description={`This will reject the certificate for "${activityToProcess?.student_name}". The student will be notified to re-upload.`}
+                    variant="warning"
+                    icon="reject"
+                    confirmLabel="Reject & Notify"
+                    placeholder="Provide a clear reason (e.g. Blurry photo, wrong event mentioned)..."
                 />
             </DialogContent>
         </Dialog>
