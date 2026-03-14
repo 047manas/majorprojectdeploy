@@ -8,6 +8,8 @@ import { Loader2, Users, CheckCircle2, AlertCircle, Clock, Plus, Trash2, UserPlu
 import { toast } from 'sonner';
 import api from '@/services/api';
 
+import { ReasonModal } from '@/components/dashboard/ReasonModal';
+
 interface EventDetailsModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -15,7 +17,7 @@ interface EventDetailsModalProps {
     onRosterChanged?: (updatedEvent?: { title: string, start_date: string }) => void;
 }
 
-interface StudentRecord {
+interface Activity {
     activity_id: number;
     student_name: string;
     student_roll: string;
@@ -25,8 +27,8 @@ interface StudentRecord {
 }
 
 const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, event, onRosterChanged }) => {
-    const [students, setStudents] = useState<StudentRecord[]>([]);
-    const [loading, setLoading] = useState(false);
+    const [students, setStudents] = useState<Activity[]>([]);
+    const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [canEdit, setCanEdit] = useState(false);
 
@@ -48,10 +50,15 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
     const [editEndDate, setEditEndDate] = useState('');
     const [savingDetails, setSavingDetails] = useState(false);
 
+    // Modal states for ReasonModal
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
+    const [activeActivity, setActiveActivity] = useState<number | null>(null);
+    const [activeActivityName, setActiveActivityName] = useState<string>('');
+
     useEffect(() => {
         if (isOpen && event && event.start_date) {
             fetchStudents();
-            // Reset edit state
             setEditTitle(event.title);
             setEditStartDate(event.start_date.split('T')[0]);
             setIsEditingEvent(false);
@@ -63,6 +70,7 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
             setAddError(null);
             setAddSuccess(null);
             setIsEditingEvent(false);
+            setLoading(true);
         }
     }, [isOpen, event]);
 
@@ -73,23 +81,17 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
             const encodedTitle = encodeURIComponent(event!.title);
             const date = event!.start_date!.split('T')[0];
             const response = await api.get(`/faculty/event/${encodedTitle}/${date}`);
-            // Handle both old format (array) and new format ({ students, can_edit })
-            if (Array.isArray(response.data)) {
-                setStudents(response.data);
-                setCanEdit(false);
-            } else {
-                const studentList = response.data.students || [];
-                setStudents(studentList);
-                setCanEdit(response.data.can_edit || false);
+            
+            const studentList = response.data.students || [];
+            setStudents(studentList);
+            setCanEdit(response.data.can_edit || false);
 
-                // Pre-fill edit fields from backend metadata
-                if (response.data.metadata) {
-                    const meta = response.data.metadata;
-                    setEditTitle(meta.title || event!.title);
-                    setEditIssuer(meta.issuer_name || '');
-                    setEditStartDate(meta.start_date || event!.start_date!.split('T')[0]);
-                    setEditEndDate(meta.end_date || '');
-                }
+            if (response.data.metadata) {
+                const meta = response.data.metadata;
+                setEditTitle(meta.title || event!.title);
+                setEditIssuer(meta.issuer_name || '');
+                setEditStartDate(meta.start_date || event!.start_date!.split('T')[0]);
+                setEditEndDate(meta.end_date || '');
             }
         } catch (err: any) {
             setError(err.error || "Failed to load attendees");
@@ -124,32 +126,44 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
         }
     };
 
-    const handleRemoveStudent = async (activityId: number) => {
-        if (!window.confirm('Remove this student from the event roster? This will also delete any uploaded certificate.')) return;
-        setRemovingId(activityId);
+    const handleRemoveStudentClick = (activityId: number, studentName: string) => {
+        setActiveActivity(activityId);
+        setActiveActivityName(studentName);
+        setIsDeleteModalOpen(true);
+    };
+
+    const confirmRemoveStudent = async (reason: string) => {
+        if (!activeActivity) return;
+        setRemovingId(activeActivity);
         try {
-            await api.delete(`/faculty/event/remove-student/${activityId}`);
+            await api.delete(`/faculty/event/remove-student/${activeActivity}`);
             toast.success('Student removed from roster');
             fetchStudents();
             onRosterChanged?.();
         } catch (err: any) {
             toast.error(err.error || 'Failed to remove student');
+            throw err;
         } finally {
             setRemovingId(null);
         }
     };
 
-    const handleUndoApproval = async (activityId: number) => {
-        const reason = window.prompt("Reason for undoing approval / rejecting:", "Mistakenly approved certificate");
-        if (reason === null) return;
+    const handleUndoApprovalClick = (activityId: number, studentName: string) => {
+        setActiveActivity(activityId);
+        setActiveActivityName(studentName);
+        setIsRejectModalOpen(true);
+    };
 
+    const confirmUndoApproval = async (reason: string) => {
+        if (!activeActivity) return;
         try {
-            await api.post(`/faculty/reject/${activityId}`, { faculty_comment: reason });
+            await api.post(`/faculty/reject/${activeActivity}`, { faculty_comment: reason });
             toast.success("Approval undone. Record set to rejected.");
             fetchStudents();
             onRosterChanged?.();
         } catch (err: any) {
             toast.error(err.error || "Failed to undo approval");
+            throw err;
         }
     };
 
@@ -201,7 +215,6 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
             if (response.data.success) {
                 toast.success(response.data.message);
                 setIsEditingEvent(false);
-                // Notify parent to refresh list with NEW title/date
                 onRosterChanged?.({
                     title: editTitle,
                     start_date: editStartDate
@@ -253,24 +266,25 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
 
     return (
         <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col">
-                <DialogHeader className="shrink-0 mb-4 pr-12">
+            <DialogContent className="max-w-3xl max-h-[85vh] flex flex-col p-0 overflow-hidden bg-white dark:bg-slate-950 border-none shadow-2xl">
+                {/* Custom Header Section */}
+                <div className="shrink-0 p-6 bg-slate-50/50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800">
                     <div className="flex items-center justify-between gap-4">
-                        <div className="flex flex-col gap-0.5 min-w-0">
-                            <DialogTitle className="flex items-center gap-2 text-xl">
-                                <Users className="h-5 w-5 text-indigo-600" />
+                        <div className="flex flex-col gap-1 min-w-0">
+                            <h2 className="flex items-center gap-2.5 text-xl font-bold text-slate-900 dark:text-white">
+                                <Users className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
                                 Attendance Roster
-                            </DialogTitle>
-                            <DialogDescription>
+                            </h2>
+                            <p className="text-sm text-slate-500 dark:text-slate-400 truncate">
                                 {event.title} • {event.start_date ? new Date(event.start_date).toLocaleDateString() : 'N/A'}
-                            </DialogDescription>
+                            </p>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-2 pr-6">
                             {canEdit && !isEditingEvent && (
                                 <Button
-                                    variant="ghost"
+                                    variant="outline"
                                     size="sm"
-                                    className="h-8 px-2 text-xs gap-1.5 text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+                                    className="h-8 px-3 text-xs gap-2 border-slate-200 dark:border-slate-800"
                                     onClick={() => {
                                         setEditTitle(event.title);
                                         setEditStartDate(event.start_date?.split('T')[0] || '');
@@ -283,205 +297,218 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
                             )}
                         </div>
                     </div>
-                </DialogHeader>
+                </div>
 
-                {/* Edit Event Details Form */}
-                {isEditingEvent && (
-                    <div className="mb-4 p-4 bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-xl space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h4 className="text-sm font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                                <Edit2 className="h-4 w-4 text-indigo-500" />
-                                Edit Event Details
-                            </h4>
-                            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsEditingEvent(false)}>
-                                <X className="h-4 w-4" />
-                            </Button>
+                {/* Main Content Area */}
+                <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-200 dark:scrollbar-thumb-slate-800">
+                    {/* Bulk Actions & Stats */}
+                    {!isEditingEvent && !loading && students.length > 0 && (
+                        <div className="flex flex-wrap items-center gap-6 mb-6">
+                            <div className="flex gap-4">
+                                <div className="px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-900/30">
+                                    <div className="text-[10px] uppercase tracking-wider font-bold text-indigo-500 mb-0.5">Total</div>
+                                    <div className="text-lg font-bold text-indigo-700 dark:text-indigo-300 leading-none">{students.length}</div>
+                                </div>
+                                <div className="px-3 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-900/30">
+                                    <div className="text-[10px] uppercase tracking-wider font-bold text-emerald-500 mb-0.5">Uploaded</div>
+                                    <div className="text-lg font-bold text-emerald-700 dark:text-emerald-300 leading-none">{uploadedCount}</div>
+                                </div>
+                                <div className="px-3 py-1.5 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-100 dark:border-orange-900/30">
+                                    <div className="text-[10px] uppercase tracking-wider font-bold text-orange-500 mb-0.5">Missing</div>
+                                    <div className="text-lg font-bold text-orange-700 dark:text-orange-300 leading-none">{pendingCount}</div>
+                                </div>
+                            </div>
+
+                            {canEdit && students.some(s => s.status === 'pending') && (
+                                <Button
+                                    variant="default"
+                                    size="sm"
+                                    className="ml-auto bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-600/20"
+                                    onClick={handleBulkApprove}
+                                    disabled={bulkApproving}
+                                >
+                                    {bulkApproving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <CheckCircle2 className="h-4 w-4 mr-2" />}
+                                    Approve All Pending
+                                </Button>
+                            )}
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2 col-span-2">
-                                <Label className="text-xs">Event Title</Label>
-                                <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} placeholder="Event Title" />
+                    )}
+
+                    {/* Edit Event Details Form */}
+                    {isEditingEvent && (
+                        <div className="mb-8 p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+                            <div className="flex items-center justify-between mb-6">
+                                <h4 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2.5">
+                                    <div className="p-1.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-lg">
+                                        <Edit2 className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                                    </div>
+                                    Event Identity Details
+                                </h4>
+                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full" onClick={() => setIsEditingEvent(false)}>
+                                    <X className="h-4 w-4" />
+                                </Button>
                             </div>
-                            <div className="space-y-2 col-span-2">
-                                <Label className="text-xs">Issued By (Organization)</Label>
-                                <Input value={editIssuer} onChange={e => setEditIssuer(e.target.value)} placeholder="Organization Name" />
+                            <div className="grid grid-cols-2 gap-5">
+                                <div className="space-y-2.5 col-span-2">
+                                    <Label className="text-xs uppercase tracking-wider font-bold text-slate-500">Official Title</Label>
+                                    <Input value={editTitle} onChange={e => setEditTitle(e.target.value)} className="h-10" />
+                                </div>
+                                <div className="space-y-2.5 col-span-2">
+                                    <Label className="text-xs uppercase tracking-wider font-bold text-slate-500">Issued By (Organization)</Label>
+                                    <Input value={editIssuer} onChange={e => setEditIssuer(e.target.value)} />
+                                </div>
+                                <div className="space-y-2.5">
+                                    <Label className="text-xs uppercase tracking-wider font-bold text-slate-500">Starts On</Label>
+                                    <Input type="date" value={editStartDate} onChange={e => setEditStartDate(e.target.value)} />
+                                </div>
+                                <div className="space-y-2.5">
+                                    <Label className="text-xs uppercase tracking-wider font-bold text-slate-500">Ends On</Label>
+                                    <Input type="date" value={editEndDate} onChange={e => setEditEndDate(e.target.value)} />
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label className="text-xs">Start Date</Label>
-                                <Input type="date" value={editStartDate} onChange={e => setEditStartDate(e.target.value)} />
-                            </div>
-                            <div className="space-y-2">
-                                <Label className="text-xs">End Date</Label>
-                                <Input type="date" value={editEndDate} onChange={e => setEditEndDate(e.target.value)} />
+                            <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100 dark:border-slate-800">
+                                <Button variant="ghost" onClick={() => setIsEditingEvent(false)}>Cancel</Button>
+                                <Button className="min-w-[140px] bg-indigo-600 hover:bg-indigo-700 text-white" onClick={handleUpdateEventDetails} disabled={savingDetails}>
+                                    {savingDetails ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                                    Save Updates
+                                </Button>
                             </div>
                         </div>
-                        <div className="flex justify-end gap-2 pt-2">
-                            <Button variant="ghost" size="sm" onClick={() => setIsEditingEvent(false)}>Cancel</Button>
-                            <Button size="sm" onClick={handleUpdateEventDetails} disabled={savingDetails}>
-                                {savingDetails ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" /> : <Save className="h-3.5 w-3.5 mr-2" />}
-                                Save Changes
-                            </Button>
-                        </div>
-                    </div>
-                )}
+                    )}
 
-                {/* Attendance Management - Only shown when NOT editing event details */}
-                {!isEditingEvent && (
-                    <div className="flex-1 flex flex-col min-h-0">
-                        {/* Summary Stats */}
-                        {!loading && students.length > 0 && (
-                            <div className="flex gap-4 mb-3">
-                                <div className="flex items-center gap-1.5 text-sm text-slate-600 dark:text-slate-400">
-                                    <Users className="h-4 w-4" />
-                                    <span className="font-semibold text-slate-900 dark:text-white">{students.length}</span> Total
-                                </div>
-                                <div className="flex items-center gap-1.5 text-sm text-emerald-600 dark:text-emerald-400">
-                                    <CheckCircle2 className="h-4 w-4" />
-                                    <span className="font-semibold">{uploadedCount}</span> Uploaded
-                                </div>
-                                <div className="flex items-center gap-1.5 text-sm text-orange-600 dark:text-orange-400">
-                                    <AlertCircle className="h-4 w-4" />
-                                    <span className="font-semibold">{pendingCount}</span> Pending
-                                </div>
-
-                                {canEdit && students.some(s => s.status === 'pending') && (
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        className="ml-auto h-8 text-xs border-emerald-200 dark:border-emerald-800 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/10"
-                                        onClick={handleBulkApprove}
-                                        disabled={bulkApproving}
-                                    >
-                                        {bulkApproving ? <Loader2 className="h-3 w-3 animate-spin mr-1.5" /> : <CheckCircle2 className="h-3 w-3 mr-1.5" />}
-                                        Verify All Pending
-                                    </Button>
-                                )}
-                            </div>
-                        )}
-
-                        {/* Add Student (only for event in-charge) */}
-                        {canEdit && (
-                            <div className="mb-4 p-4 bg-indigo-50/40 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 rounded-xl">
-                                <div className="flex items-center gap-2 mb-3 text-sm font-semibold text-indigo-700 dark:text-indigo-400">
-                                    <UserPlus className="h-4 w-4" />
-                                    Add Student to Roster
-                                </div>
-                                <div className="flex items-center gap-2">
+                    {/* Attendance Controller */}
+                    {!isEditingEvent && (
+                        <div className="space-y-6">
+                            {/* Add Student Input */}
+                            {canEdit && (
+                                <div className="flex items-center gap-3 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm pr-3">
+                                    <div className="pl-4">
+                                        <UserPlus className="h-5 w-5 text-slate-400" />
+                                    </div>
                                     <Input
-                                        placeholder="Enter Roll Number (e.g. stuCSE1)..."
+                                        placeholder="Enter Roll Number to add student..."
                                         value={addRoll}
                                         onChange={e => { setAddRoll(e.target.value); setAddError(null); setAddSuccess(null); }}
                                         onKeyDown={e => e.key === 'Enter' && handleAddStudent()}
-                                        className="h-9 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800"
+                                        className="border-none shadow-none focus-visible:ring-0 bg-transparent h-11 text-base p-0"
                                     />
                                     <Button
                                         size="sm"
-                                        className="h-9 px-4 bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 shadow-sm"
+                                        className="h-9 px-6 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl shadow-md shadow-indigo-600/10"
                                         onClick={handleAddStudent}
                                         disabled={addLoading || !addRoll.trim()}
                                     >
-                                        {addLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4 mr-1.5" />}
-                                        Add student
+                                        {addLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Add Attendee'}
                                     </Button>
                                 </div>
-                                {addError && <p className="text-xs text-rose-600 font-medium mt-2">{addError}</p>}
-                                {addSuccess && <p className="text-xs text-emerald-600 font-medium mt-2">{addSuccess}</p>}
-                            </div>
-                        )}
+                            )}
 
-                        <div className="flex-1 overflow-auto rounded-lg border border-slate-200 dark:border-slate-800">
-                            {loading ? (
-                                <div className="flex flex-col items-center justify-center py-16 text-slate-500">
-                                    <Loader2 className="h-8 w-8 animate-spin mb-4 text-indigo-500" />
-                                    <p>Loading attendee list...</p>
-                                </div>
-                            ) : error ? (
-                                <div className="p-8 text-center text-rose-500">
-                                    <p>{error}</p>
-                                </div>
-                            ) : students.length === 0 ? (
-                                <div className="p-8 text-center text-slate-500">
-                                    <p>No students found for this event.</p>
-                                </div>
-                            ) : (
-                                <Table>
-                                    <TableHeader className="bg-slate-50 dark:bg-slate-900/50">
-                                        <TableRow>
-                                            <TableHead className="font-semibold text-slate-900 dark:text-slate-100">Roll No.</TableHead>
-                                            <TableHead className="font-semibold text-slate-900 dark:text-slate-100">Student Name</TableHead>
-                                            <TableHead className="font-semibold text-slate-900 dark:text-slate-100">Dept</TableHead>
-                                            <TableHead className="font-semibold text-slate-900 dark:text-slate-100 text-right">Status</TableHead>
-                                            <TableHead className="font-semibold text-slate-900 dark:text-slate-100 text-center w-24">Actions</TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {students.map((student) => (
-                                            <TableRow key={student.activity_id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
-                                                <TableCell className="font-medium text-slate-900 dark:text-slate-200">
-                                                    {student.student_roll}
-                                                </TableCell>
-                                                <TableCell>{student.student_name}</TableCell>
-                                                <TableCell className="text-slate-500 dark:text-slate-400 text-sm">{student.student_department || '-'}</TableCell>
-                                                <TableCell className="text-right">
-                                                    <StatusBadge status={student.status} />
-                                                </TableCell>
-                                                <TableCell className="text-center">
-                                                    <div className="flex items-center justify-center gap-1">
-                                                        {student.status !== 'pending_upload' && student.certificate_file && (
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-7 w-7 text-indigo-500 hover:text-indigo-700"
-                                                                onClick={() => window.open(api.defaults.baseURL + '/public/certificate/' + student.certificate_file, '_blank')}
-                                                                title="View Certificate"
-                                                            >
-                                                                <Eye className="h-3.5 w-3.5" />
-                                                            </Button>
-                                                        )}
-
-                                                        {canEdit && (
-                                                            <div className="flex items-center gap-1">
-                                                                {/* Undo Approval / Reject option for already uploaded items */}
-                                                                {student.status !== 'pending_upload' && student.status !== 'rejected' && (
-                                                                    <Button
-                                                                        variant="ghost"
-                                                                        size="icon"
-                                                                        className="h-7 w-7 text-amber-500 hover:text-amber-700 hover:bg-amber-50"
-                                                                        onClick={() => handleUndoApproval(student.activity_id)}
-                                                                        title="Undo Approval / Reject"
-                                                                    >
-                                                                        <X className="h-3.5 w-3.5" />
-                                                                    </Button>
-                                                                )}
-
-                                                                {/* Direct Deletion for any status */}
+                            {/* List Content */}
+                            <div className="rounded-2xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+                                {loading ? (
+                                    <div className="flex flex-col items-center justify-center py-20 bg-slate-50/30 dark:bg-slate-900/30">
+                                        <Loader2 className="h-10 w-10 animate-spin text-indigo-500 mb-4 opacity-50" />
+                                        <p className="text-sm font-medium text-slate-400 uppercase tracking-widest">Loading Roster...</p>
+                                    </div>
+                                ) : (
+                                    <Table>
+                                        <TableHeader className="bg-slate-100/50 dark:bg-slate-900/80">
+                                            <TableRow className="hover:bg-transparent border-none">
+                                                <TableHead className="h-12 font-bold px-6 text-slate-500 uppercase text-[10px] tracking-widest">Attendee</TableHead>
+                                                <TableHead className="h-12 font-bold px-4 text-slate-500 uppercase text-[10px] tracking-widest">Department</TableHead>
+                                                <TableHead className="h-12 font-bold px-4 text-slate-500 uppercase text-[10px] tracking-widest text-right">Status</TableHead>
+                                                <TableHead className="h-12 font-bold px-6 text-slate-500 uppercase text-[10px] tracking-widest text-center w-36">Actions</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody className="bg-white dark:bg-slate-950">
+                                            {students.map((student) => (
+                                                <TableRow key={student.activity_id} className="group border-slate-100 dark:border-slate-900 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
+                                                    <TableCell className="px-6 py-4">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold text-slate-900 dark:text-white leading-tight">{student.student_name}</span>
+                                                            <span className="text-xs text-slate-400 font-medium">{student.student_roll}</span>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="px-4 py-4">
+                                                        <span className="text-xs font-bold text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded uppercase">{student.student_department || '-'}</span>
+                                                    </TableCell>
+                                                    <TableCell className="px-4 py-4 text-right">
+                                                        <StatusBadge status={student.status} />
+                                                    </TableCell>
+                                                    <TableCell className="px-6 py-4">
+                                                        <div className="flex items-center justify-center gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity">
+                                                            {student.status !== 'pending_upload' && student.certificate_file && (
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="icon"
-                                                                    className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                                                                    onClick={() => handleRemoveStudent(student.activity_id)}
-                                                                    disabled={removingId === student.activity_id}
-                                                                    title="Remove from roster"
+                                                                    className="h-8 w-8 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
+                                                                    onClick={() => window.open(api.defaults.baseURL + '/public/certificate/' + student.certificate_file, '_blank')}
+                                                                    title="View Document"
                                                                 >
-                                                                    {removingId === student.activity_id
-                                                                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                                        : <Trash2 className="h-3.5 w-3.5" />
-                                                                    }
+                                                                    <Eye className="h-4 w-4" />
                                                                 </Button>
-                                                            </div>
-                                                        )}
-
-                                                        {!canEdit && <span className="text-xs text-slate-300 dark:text-slate-600">—</span>}
-                                                    </div>
-                                                </TableCell>
-                                            </TableRow>
-                                        ))}
-                                    </TableBody>
-                                </Table>
-                            )}
+                                                            )}
+                                                            {canEdit && (
+                                                                <>
+                                                                    {student.status !== 'pending_upload' && student.status !== 'rejected' && (
+                                                                        <Button
+                                                                            variant="ghost"
+                                                                            size="icon"
+                                                                            className="h-8 w-8 text-amber-500 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-900/20"
+                                                                            onClick={() => handleUndoApprovalClick(student.activity_id, student.student_name)}
+                                                                            title="Reject Submission"
+                                                                        >
+                                                                            <X className="h-4 w-4" />
+                                                                        </Button>
+                                                                    )}
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                                                                        onClick={() => handleRemoveStudentClick(student.activity_id, student.student_name)}
+                                                                        disabled={removingId === student.activity_id}
+                                                                        title="Remove from Roster"
+                                                                    >
+                                                                        {removingId === student.activity_id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                                                    </Button>
+                                                                </>
+                                                            )}
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                )}
+                    )}
+                </div>
+
+                {/* Overlaid Reason Modals */}
+                <ReasonModal
+                    isOpen={isDeleteModalOpen}
+                    onClose={() => { setIsDeleteModalOpen(false); setActiveActivity(null); }}
+                    onConfirm={confirmRemoveStudent}
+                    title="Remove from Roster"
+                    description={`Delete "${activeActivityName}" from the roster? This clears their participation record and any uploaded certificate.`}
+                    variant="destructive"
+                    icon="delete"
+                    confirmLabel="Remove Attendee"
+                    placeholder="Reason (e.g. Mistaken entry, absent student)..."
+                />
+
+                <ReasonModal
+                    isOpen={isRejectModalOpen}
+                    onClose={() => { setIsRejectModalOpen(false); setActiveActivity(null); }}
+                    onConfirm={confirmUndoApproval}
+                    title="Reject Submission"
+                    description={`Invalidate "${activeActivityName}"'s certificate? They will be notified to re-upload while remaining on the roster.`}
+                    variant="warning"
+                    icon="reject"
+                    confirmLabel="Reject & Notify Student"
+                    placeholder="Describe the issue (e.g. Blurry photo, incorrect dates)..."
+                />
             </DialogContent>
         </Dialog>
     );

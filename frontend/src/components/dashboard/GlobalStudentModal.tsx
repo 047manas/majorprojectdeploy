@@ -15,6 +15,7 @@ import { Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/context/AuthContext';
+import { ReasonModal } from './ReasonModal';
 
 interface GlobalStudentModalProps {
     isOpen: boolean;
@@ -27,6 +28,10 @@ const GlobalStudentModal: React.FC<GlobalStudentModalProps> = ({ isOpen, onClose
     const queryClient = useQueryClient();
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
+
+    // Deletion Modal State
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+    const [activityToDelete, setActivityToDelete] = useState<any>(null);
 
     // Debounce Search
     useEffect(() => {
@@ -53,26 +58,22 @@ const GlobalStudentModal: React.FC<GlobalStudentModalProps> = ({ isOpen, onClose
         enabled: isOpen,
     });
 
-    const handleDeleteActivity = async (activity: any) => {
-        const confirmMsg = user?.role === 'admin'
-            ? `Admin: Are you sure you want to delete student activity '${activity.title}'?`
-            : `Are you sure you want to delete student activity '${activity.title}'? This action is permanent.`;
+    const handleDeleteActivity = (activity: any) => {
+        setActivityToDelete(activity);
+        setIsDeleteModalOpen(true);
+    };
 
-        if (!window.confirm(confirmMsg)) {
-            return;
-        }
-
-        const reason = window.prompt("Reason for deletion (Optional but recommended):", "Incorrect or fraudulent submission");
-        if (reason === null) return; // User cancelled prompt
-
+    const confirmDeleteActivity = async (reason: string) => {
+        if (!activityToDelete) return;
         try {
-            await api.post(`/admin/student-activities/delete/${activity.id}`, { reason });
+            await api.post(`/admin/student-activities/delete/${activityToDelete.id}`, { reason });
             queryClient.invalidateQueries({ queryKey: ['global-students'] });
             queryClient.invalidateQueries({ queryKey: ['students'] });
             queryClient.invalidateQueries({ queryKey: ['kpi-summary'] });
             toast.success("Activity deleted.");
         } catch (error: any) {
             toast.error(error.error || "Deletion failed");
+            throw error; // Rethrow so ReasonModal knows it failed
         }
     };
 
@@ -119,6 +120,21 @@ const GlobalStudentModal: React.FC<GlobalStudentModalProps> = ({ isOpen, onClose
                         }}
                     />
                 </div>
+
+                <ReasonModal
+                    isOpen={isDeleteModalOpen}
+                    onClose={() => {
+                        setIsDeleteModalOpen(false);
+                        setActivityToDelete(null);
+                    }}
+                    onConfirm={confirmDeleteActivity}
+                    title="Delete Activity Record"
+                    description={`Are you sure you want to delete the activity "${activityToDelete?.title}" for student "${activityToDelete?.student_name}"? This action cannot be undone.`}
+                    variant="destructive"
+                    icon="delete"
+                    confirmLabel="Delete Permanently"
+                    placeholder="Provide a reason for this deletion (e.g. Fraudulent submission, duplicate entry)..."
+                />
             </DialogContent>
         </Dialog>
     );
