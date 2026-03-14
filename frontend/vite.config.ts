@@ -24,10 +24,11 @@ export default defineConfig({
         rollupOptions: {
             output: {
                 manualChunks: {
-                    vendor: ['react', 'react-dom', 'react-router-dom'],
-                    ui: ['@radix-ui/react-dialog', '@radix-ui/react-select', 'lucide-react', 'framer-motion'],
-                    charts: ['recharts'],
-                    utils: ['axios', 'date-fns', 'jspdf', 'jspdf-autotable']
+                    core: ['react', 'react-dom', 'react-router-dom'],
+                    ui: ['@radix-ui/react-dialog', '@radix-ui/react-select', 'lucide-react', 'framer-motion', 'sonner'],
+                    viz: ['recharts'],
+                    pdf: ['jspdf', 'jspdf-autotable'],
+                    vendor: ['axios', 'date-fns', 'clsx', 'tailwind-merge']
                 }
             }
         }

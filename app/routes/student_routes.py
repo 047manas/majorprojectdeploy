@@ -8,6 +8,7 @@ from xhtml2pdf import pisa
 import os
 import io
 import json
+import logging
 import secrets
 from datetime import datetime
 import uuid
@@ -126,17 +127,15 @@ def upload_activity():
         filepath = os.path.join(upload_folder, unique_filename)
         file.save(filepath)
         
-        # Upload to Cloud (Supabase) if configured
-        public_url, is_cloud = storage_service.upload_file(filepath, unique_filename)
+        # --- Verification Logic (Local First) ---
+        file_hash = hashstore.calculate_file_hash(filepath)
         
-        # --- Verification Logic ---
         verifier = VerificationService()
         verification = verifier.verify(filepath)
         
         status = 'pending'
         auto_decision = verification['auto_decision']
         
-        file_hash = hashstore.calculate_file_hash(filepath)
         approved_record = hashstore.lookup_hash(file_hash)
         
         if approved_record:
@@ -144,6 +143,14 @@ def upload_activity():
             auto_decision = "Verified by previously stored hash (tamper-proof)."
         elif verification['strong_auto']:
             status = 'auto_verified'
+        
+        # Upload to Cloud (Supabase) AFTER confirming valid file/metadata
+        public_url, is_cloud = storage_service.upload_file(filepath, unique_filename)
+        
+        # In production, if cloud upload fails, it's an error
+        if os.getenv('FLASK_ENV') == 'production' and not is_cloud:
+            logging.error(f"Production Upload Failure: Could not upload {unique_filename} to Supabase.")
+            return jsonify({'error': 'Cloud storage error. Please try again later or contact support.'}), 500
         
         # --- Routing Logic ---
         assigned_reviewer_id = None
@@ -513,6 +520,11 @@ def get_notifications():
                     if not linked_activity or linked_activity.is_deleted or linked_activity.status != 'pending_upload':
                         is_completed = True
                         action_url = None
+                    else:
+                        # Ensure student_id matches for safety
+                        if linked_activity.student_id != current_user.id:
+                             is_completed = True
+                             action_url = None
   # Make non-clickable
             except (json.JSONDecodeError, ValueError):
                 pass
@@ -533,6 +545,21 @@ def get_notifications():
                 if legacy_activity and legacy_activity.status != 'pending_upload':
                     is_completed = True
                     action_url = None
+                else:
+                    # Final check: Does the student have ANY activity with this title that is DONE?
+                    title_match = StudentActivity.query.filter_by(
+                        student_id=current_user.id,
+                        title=legacy_title,
+                        is_deleted=False
+                    ).filter(StudentActivity.status != 'pending_upload').first()
+                    if title_match:
+                        is_completed = True
+                        action_url = None
+        
+        # Check 3: If the notification title itself implies completion
+        if "Upload Successful" in n.title or "Verification is done" in n.message:
+            is_completed = True
+            action_url = None
 
         data.append({
             'id': n.id,
@@ -645,6 +672,14 @@ def upload_for_attendance(activity_id):
             auto_decision = "Verified by previously stored hash (tamper-proof)."
         elif verification['strong_auto']:
             status = 'auto_verified'
+
+        # Upload to Cloud (Supabase)
+        public_url, is_cloud = storage_service.upload_file(filepath, unique_filename)
+        
+        # In production, if cloud upload fails, it's an error
+        if os.getenv('FLASK_ENV') == 'production' and not is_cloud:
+            logging.error(f"Production Attendance Upload Failure: Could not upload {unique_filename} to Supabase.")
+            return jsonify({'error': 'Cloud storage error. Please try again later or contact support.'}), 500
 
         # Update the activity record
         activity.certificate_file = unique_filename

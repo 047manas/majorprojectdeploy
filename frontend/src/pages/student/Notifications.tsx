@@ -69,6 +69,8 @@ const Notifications = () => {
     };
 
     const handleNotificationClick = async (n: NotificationItem) => {
+        if (n.is_completed) return; // Explicitly block clicks for completed tasks
+
         // Mark as read
         if (!n.is_read) {
             try {
