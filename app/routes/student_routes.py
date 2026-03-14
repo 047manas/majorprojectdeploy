@@ -569,73 +569,43 @@ def get_notifications():
 
     data = []
     for n in pagination.items:
-        is_completed = False
-        action_url = n.action_url
-        
-        # Check if this is an attendance upload notification that has been completed
+        n_type = n.type
+        # If we have a linked activity, let its status dictate the truth
         if n.action_data:
             try:
                 action_info = json.loads(n.action_data)
                 activity_id = action_info.get('activity_id')
                 if activity_id:
                     linked_activity = StudentActivity.query.get(activity_id)
-                    # Completed if activity is successfully reviewed (approval states) or removed
-                    # Rejections and pending_uploads are NOT completed as they still require action.
-                    if not linked_activity or linked_activity.is_deleted:
-                        is_completed = True
-                    elif linked_activity.student_id != current_user.id:
-                        is_completed = True
-                        action_url = None
-                    elif linked_activity.status not in ('pending_upload', 'rejected'):
-                        is_completed = True
-                        action_url = None
-                    else:
-                        is_completed = False
-                        # Ensure we have a valid action_url if not completed
-                        if not action_url:
+                    if linked_activity and not linked_activity.is_deleted:
+                        if linked_activity.status in ('rejected', 'pending_upload'):
+                            is_completed = False
+                            n_type = 'warning' if linked_activity.status == 'rejected' else 'info'
                             action_url = n.action_url
-  # Make non-clickable
-            except (json.JSONDecodeError, ValueError):
-                pass
-        
-        # Check 2: Legacy Fallback for "ghost" notifications (No metadata)
-        if not is_completed and "Certificate Upload Required" in n.title:
-            import re
-            # Matches: You participated in "[TITLE]" (In-Campus). Please upload your certificate...
-            match = re.search(r'participated in "(.+?)"', n.message)
-            if match:
-                legacy_title = match.group(1)
-                # Check if student already uploaded for this event
-                legacy_activity = StudentActivity.query.filter_by(
-                    student_id=current_user.id,
-                    title=legacy_title,
-                    is_deleted=False
-                ).first()
-                if legacy_activity and legacy_activity.status != 'pending_upload':
-                    is_completed = True
-                    action_url = None
-                else:
-                    # Final check: Does the student have ANY activity with this title that is DONE?
-                    title_match = StudentActivity.query.filter_by(
-                        student_id=current_user.id,
-                        title=legacy_title,
-                        is_deleted=False
-                    ).filter(StudentActivity.status != 'pending_upload').first()
-                    if title_match:
+                        else:
+                            is_completed = True
+                            n_type = 'success'
+                            action_url = None
+                    else:
                         is_completed = True
                         action_url = None
-        
-        # Check 3: If the notification title itself implies completion
-        if not is_completed and n.type not in ('warning', 'error'):
-            if "Upload Successful" in n.title or "Verification is done" in n.message:
+            except: pass
+
+        # Final string-based fallbacks (Only if still not completed)
+        if not is_completed and not n.action_data:
+            if "not approved" in n.message.lower() or "rejected" in n.message.lower():
+                n_type = 'warning'
+                is_completed = False
+            elif "Verification is done" in n.message or "Upload Successful" in n.title:
                 is_completed = True
+                n_type = 'success'
                 action_url = None
 
         data.append({
             'id': n.id,
             'title': n.title,
             'message': n.message,
-            'type': n.type if not is_completed else 'success',
+            'type': n_type,
             'is_read': n.is_read,
             'action_url': action_url,
             'action_data': n.action_data,
