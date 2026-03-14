@@ -686,9 +686,11 @@ def upload_for_attendance(activity_id):
         activity.certificate_hash = file_hash
         activity.urls_json = json.dumps(verification['urls'])
         activity.ids_json = json.dumps(verification['ids'])
+        activity.status = status  # <-- FIX: Update the status from 'pending_upload'
         activity.auto_decision = auto_decision
         activity.verification_mode = verification.get('verification_mode', 'text_only')
         activity.auto_details = verification.get('auto_details')
+        activity.is_attendance_uploaded = True # Ensure it stays True
         if not activity.verification_token:
             activity.verification_token = secrets.token_urlsafe(16)
 

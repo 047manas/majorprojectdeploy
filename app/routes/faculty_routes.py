@@ -933,7 +933,12 @@ def update_event_details():
                     title='Event Details Updated',
                     message=f'The event "{old_title}" has been updated by {current_user.full_name}: {change_summary}.',
                     type='info',
-                    action_url='/student/portfolio'
+                    action_url='/student/upload',
+                    action_data=json.dumps({
+                        'activity_id': activity.id,
+                        'title': activity.title,
+                        'prefill': True
+                    })
                 )
                 db.session.add(notif)
                 notified_ids.add(activity.student_id)

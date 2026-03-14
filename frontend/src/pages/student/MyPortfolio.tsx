@@ -285,6 +285,9 @@ const MyPortfolio = () => {
                     } else if (status === 'pending_upload') {
                         color = 'text-amber-700 bg-amber-100/80 dark:text-amber-400 dark:bg-amber-900/30';
                         label = 'Upload Required';
+                    } else if (status === 'pending') {
+                        color = 'text-amber-700 bg-amber-100/80 dark:text-amber-400 dark:bg-amber-900/30';
+                        label = 'Pending Verification';
                     }
 
                     const modeLabel = getVerificationModeLabel(mode);
