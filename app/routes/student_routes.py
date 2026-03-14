@@ -548,6 +548,15 @@ def delete_activity(activity_id):
         Notification.action_data.contains(f'"activity_id": {activity.id}')
     ).delete(synchronize_session=False)
     
+    # Notify student of successful withdrawal
+    student_notif = Notification(
+        user_id=current_user.id,
+        title='Activity Withdrawn',
+        message=f'Your activity submission "{activity.title}" has been successfully withdrawn.',
+        type='info'
+    )
+    db.session.add(student_notif)
+    
     activity.is_deleted = True
     activity.deletion_reason = 'Withdrawn by student'
     db.session.commit()

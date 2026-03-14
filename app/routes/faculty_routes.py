@@ -17,7 +17,7 @@ faculty_bp = Blueprint('faculty', __name__)
 @faculty_bp.route('/')
 @role_required('faculty', 'admin')
 def dashboard():
-    query = db.session.query(StudentActivity).outerjoin(ActivityType)
+    query = db.session.query(StudentActivity).outerjoin(ActivityType).filter(StudentActivity.is_deleted == False)
     
     if current_user.role == 'faculty':
         if current_user.position == 'hod' and current_user.department:
@@ -66,7 +66,7 @@ def dashboard():
 @faculty_bp.route('/pending-count')
 @role_required('faculty', 'admin')
 def get_pending_count():
-    query = db.session.query(StudentActivity)
+    query = db.session.query(StudentActivity).filter(StudentActivity.is_deleted == False)
     
     if current_user.role == 'faculty':
         if current_user.position == 'hod' and current_user.department:
@@ -589,8 +589,14 @@ def add_student_to_event():
     if current_user.role == 'faculty' and sample_record.attendance_uploaded_by != current_user.id:
         return jsonify({'error': 'Only the event in-charge can modify the roster.'}), 403
 
-    # Find the student
-    student = User.query.filter_by(institution_id=roll_number, role='student', is_deleted=False).first()
+    # Find the student (Case-insensitive lookup)
+    from sqlalchemy import func
+    student = User.query.filter(
+        func.lower(User.institution_id) == roll_number.lower(),
+        User.role == 'student',
+        User.is_deleted == False
+    ).first()
+    
     if not student:
         return jsonify({'error': f'Student with roll number "{roll_number}" not found.'}), 404
 

@@ -96,8 +96,6 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
     const handleAddStudent = async () => {
         if (!addRoll.trim()) return;
         setAddLoading(true);
-        setAddError(null);
-        setAddSuccess(null);
         try {
             const date = event!.start_date!.split('T')[0];
             const response = await api.post('/faculty/event/add-student', {
@@ -106,13 +104,13 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
                 roll_number: addRoll.trim()
             });
             if (response.data.success) {
-                setAddSuccess(response.data.message);
+                toast.success(response.data.message);
                 setAddRoll('');
                 fetchStudents();
                 onRosterChanged?.();
             }
         } catch (err: any) {
-            setAddError(err.error || 'Failed to add student');
+            toast.error(err.error || 'Failed to add student');
         } finally {
             setAddLoading(false);
         }
