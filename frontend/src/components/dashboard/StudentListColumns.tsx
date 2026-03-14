@@ -55,30 +55,32 @@ export const studentColumns: ColumnDef<any>[] = [
         accessorKey: 'certificate_url',
         header: 'Certificate',
         cell: ({ row }) => row.original.certificate_url ? (
-            <div className="flex items-center gap-2">
-                <a
-                    href={row.original.certificate_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
-                    onClick={(e) => e.stopPropagation()}
+            <div className="flex items-center gap-1.5">
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    asChild
                     title="View Certificate"
                 >
-                    <FileText className="h-4 w-4" />
-                    <span className="text-xs underline">View</span>
-                </a>
-                <a
-                    href={row.original.certificate_url}
-                    download
-                    className="flex items-center gap-1 text-slate-600 hover:text-slate-900"
-                    onClick={(e) => e.stopPropagation()}
-                    title="Download Certificate"
+                    <a href={row.original.certificate_url} target="_blank" rel="noopener noreferrer">
+                        <FileText className="h-4 w-4" />
+                    </a>
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-slate-500 hover:text-slate-700 hover:bg-slate-100"
+                    asChild
+                    title="Download"
                 >
-                    <Download className="h-4 w-4" />
-                </a>
+                    <a href={row.original.certificate_url} download onClick={(e) => e.stopPropagation()}>
+                        <Download className="h-4 w-4" />
+                    </a>
+                </Button>
             </div>
         ) : (
-            <span className="text-xs text-muted-foreground">-</span>
+            <span className="text-[10px] font-bold text-slate-300 uppercase tracking-widest pl-2">None</span>
         )
     },
     {
@@ -99,37 +101,35 @@ export const studentColumns: ColumnDef<any>[] = [
             if (!meta?.onDelete || !canDelete) return null;
 
             return (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 min-w-[80px]">
                     {/* Reject Action */}
                     {activity.status !== 'pending_upload' && activity.status !== 'rejected' && (
                         <Button
                             variant="ghost"
-                            size="sm"
-                            className="h-8 px-2 text-amber-500 hover:text-amber-700 hover:bg-amber-50 gap-1.5"
+                            size="icon"
+                            className="h-8 w-8 text-amber-500 hover:text-amber-600 hover:bg-amber-50"
                             onClick={(e) => {
                                 e.stopPropagation();
                                 meta.onReject?.(activity);
                             }}
                             title="Undo Approval / Reject"
                         >
-                            <XCircle className="h-3.5 w-3.5" />
-                            <span className="text-xs font-medium">Reject</span>
+                            <XCircle className="h-4 w-4" />
                         </Button>
                     )}
 
                     {/* Delete Action */}
                     <Button
                         variant="ghost"
-                        size="sm"
-                        className="h-8 px-2 text-red-500 hover:text-red-700 hover:bg-red-50 gap-1.5"
+                        size="icon"
+                        className="h-8 w-8 text-rose-500 hover:text-rose-600 hover:bg-rose-50"
                         onClick={(e) => {
                             e.stopPropagation();
                             meta.onDelete(activity);
                         }}
-                        title="Delete Activity"
+                        title="Delete Permanently"
                     >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        <span className="text-xs font-medium">Delete</span>
+                        <Trash2 className="h-4 w-4" />
                     </Button>
                 </div>
             );
