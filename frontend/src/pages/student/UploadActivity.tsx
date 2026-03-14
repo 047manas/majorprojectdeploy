@@ -55,11 +55,12 @@ const UploadActivity = () => {
 
     // Handle pre-fill from notification click
     useEffect(() => {
-        const activityId = searchParams.get('activity_id');
-        const prefill = searchParams.get('prefill');
+        const activityIdParam = searchParams.get('activity_id');
+        const prefillParam = searchParams.get('prefill');
+        const prefillTitle = searchParams.get('title');
 
-        if (activityId && prefill === 'true') {
-            const parsedId = parseInt(activityId);
+        if (activityIdParam && prefillParam === 'true') {
+            const parsedId = parseInt(activityIdParam);
             if (!isNaN(parsedId)) {
                 setAttendanceActivityId(parsedId);
                 
@@ -108,21 +109,19 @@ const UploadActivity = () => {
                     })
                     .catch(err => {
                         console.error("Failed to fetch activity details for prefill", err);
-                        const prefillTitle = searchParams.get('title');
                         if (prefillTitle) setTitle(prefillTitle);
                         setCampusType('in_campus');
+                    })
+                    .finally(() => {
+                        // Clear search params ONLY after finishing the pre-fill attempt
+                        if (searchParams.has('prefill')) {
+                            setSearchParams({}, { replace: true });
+                        }
                     });
             } else {
-                console.warn("Invalid activity_id in prefill params:", activityId);
-                // Fallback for missing/invalid activity_id
-                const prefillTitle = searchParams.get('title');
+                console.warn("Invalid activity_id in prefill params:", activityIdParam);
                 if (prefillTitle) setTitle(prefillTitle);
                 setCampusType('in_campus');
-            }
-
-            // Clear params from URL without triggering re-render if possible, or only once
-            // Clear search params to prevent multiple triggers if we stay on the page
-            if (searchParams.has('prefill')) {
                 setSearchParams({}, { replace: true });
             }
         }

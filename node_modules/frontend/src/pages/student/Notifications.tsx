@@ -178,7 +178,7 @@ const Notifications = () => {
                                             </h3>
                                             <div className="flex items-center gap-2 shrink-0">
                                                 {n.is_completed && (
-                                                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 shrink-0">
+                                                    <Badge variant="secondary" className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800 shrink-0">
                                                         <CheckCircle className="h-3 w-3 mr-1" /> Done
                                                     </Badge>
                                                 )}
