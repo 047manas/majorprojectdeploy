@@ -211,6 +211,19 @@ def upload_activity():
             db.session.add(notif)
             db.session.commit()
         
+        # Notify student about successful upload
+        student_notif_msg = f"Certificate for '{title}' uploaded successfully. It is now pending verification."
+        student_notif = Notification(
+            user_id=current_user.id,
+            title="Upload Successful",
+            message=student_notif_msg,
+            type='success',
+            action_url='/student/portfolio',
+            action_data=json.dumps({'activity_id': new_activity.id})
+        )
+        db.session.add(student_notif)
+        db.session.commit()
+        
         # Log Audit Trail
         aud_msg = f"Uploaded via portal. Initial Status: {status}"
         add_audit_event(new_activity.id, current_user.full_name, "Document Uploaded", aud_msg)
@@ -674,6 +687,19 @@ def upload_for_attendance(activity_id):
             )
             db.session.add(notif)
             db.session.commit()
+
+        # Notify student about successful upload
+        student_notif_msg = f"Certificate for '{activity.title}' uploaded successfully. It is now pending verification."
+        student_notif = Notification(
+            user_id=current_user.id,
+            title="Upload Successful",
+            message=student_notif_msg,
+            type='success',
+            action_url='/student/portfolio',
+            action_data=json.dumps({'activity_id': activity.id})
+        )
+        db.session.add(student_notif)
+        db.session.commit()
 
         # Log Audit Trail
         add_audit_event(activity.id, current_user.full_name, "Attendance Document Uploaded", f"Result: {status}")

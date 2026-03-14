@@ -196,8 +196,8 @@ def approve_request(act_id):
 
     notif = Notification(
         user_id=activity.student_id,
-        title=f'Activity {status_label}',
-        message=f'Your activity "{activity.title}" has been {status_label.lower()} by {current_user.full_name}.',
+        title='Verification Complete',
+        message=f'Verification is done: Your activity "{activity.title}" has been verified and approved by {current_user.full_name}.',
         type='success',
         action_url='/student/portfolio',
         action_data=json.dumps({'activity_id': activity.id})
@@ -251,8 +251,8 @@ def reject_request(act_id):
     # Notify student about rejection
     notif = Notification(
         user_id=activity.student_id,
-        title='Activity Rejected',
-        message=f'Your activity "{activity.title}" has been rejected by {current_user.full_name}.' + (f' Reason: {comment}' if comment else ''),
+        title='Verification Complete',
+        message=f'Verification is done: Your activity "{activity.title}" was not approved by {current_user.full_name}.' + (f' Reason: {comment}' if comment else ''),
         type='warning',
         action_url='/student/upload',
         action_data=json.dumps({'rejected_activity_id': activity.id, 'title': activity.title})
