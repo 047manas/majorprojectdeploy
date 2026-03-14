@@ -1,4 +1,4 @@
-from flask import Blueprint, render_template, current_app, redirect, jsonify
+from flask import Blueprint, render_template, current_app, redirect, jsonify, make_response, send_from_directory
 from app.models import StudentActivity
 from app.verification import hashstore
 import os
@@ -66,4 +66,36 @@ def verify_public(token):
                  hash_match = True
     
     return render_template('verify_public.html', activity=activity, hash_match=hash_match)
+
+@public_bp.route('/api/public/certificate/<path:filename>')
+def serve_public_certificate(filename):
+    """
+    Serve certificates publicly. This mirrors the student/uploads logic 
+    but is accessible via /api/public/ for the Analytics dashboard.
+    """
+    from app.services.storage_service import storage_service
+    
+    # Check if this file exists in Cloud Storage first
+    cloud_url = storage_service.get_file_url(filename)
+    if cloud_url:
+        # Fix: For existing files with wrong metadata (serving as text), 
+        # we proxy the request for PDFs to force the correct header.
+        if filename.lower().endswith('.pdf'):
+            try:
+                import requests
+                # Proxy the file from Supabase
+                proxied_resp = requests.get(cloud_url, timeout=5)
+                if proxied_resp.status_code == 200:
+                    response = make_response(proxied_resp.content)
+                    response.headers['Content-Type'] = 'application/pdf'
+                    response.headers['Cache-Control'] = 'public, max-age=3600'
+                    return response
+            except Exception as e:
+                current_app.logger.error(f"Failed to proxy PDF from cloud: {e}")
+        
+        # Fallback to direct redirect for non-PDFs or failed proxy
+        return redirect(cloud_url)
+
+    # Local fallback
+    return send_from_directory(current_app.config['UPLOAD_FOLDER'], filename)
 

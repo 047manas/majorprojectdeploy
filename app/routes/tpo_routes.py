@@ -43,7 +43,7 @@ def get_student_profile(roll_number):
             'issuer_name': act.issuer_name,
             'status': act.status,
             'verification_mode': act.verification_mode,
-            'certificate_url': f"/api/public/certificate/{act.certificate_hash}" if act.certificate_hash else None
+            'certificate_url': f"/api/public/certificate/{act.certificate_file}" if act.certificate_file else None
         })
 
     return jsonify({

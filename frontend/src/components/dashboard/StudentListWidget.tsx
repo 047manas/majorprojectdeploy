@@ -101,6 +101,28 @@ const StudentListWidget: React.FC<StudentListWidgetProps> = ({ filters, onFilter
         }
     };
 
+    const handleRejectActivity = async (activity: any) => {
+        const confirmMsg = `Are you sure you want to undo approval for '${activity.title}'? This will notify the student to re-upload.`;
+        
+        if (!window.confirm(confirmMsg)) {
+            return;
+        }
+
+        const reason = window.prompt("Reason for rejection:", "Incorrect document or blurry image");
+        if (reason === null) return;
+
+        try {
+            await api.post(`/faculty/reject/${activity.id}`, { faculty_comment: reason });
+            queryClient.invalidateQueries({ queryKey: ['global-students-widget'] });
+            queryClient.invalidateQueries({ queryKey: ['global-students'] });
+            queryClient.invalidateQueries({ queryKey: ['students'] });
+            queryClient.invalidateQueries({ queryKey: ['kpi-summary'] });
+            toast.success("Approval undone. Activity rejected.");
+        } catch (error: any) {
+            toast.error(error.error || "Rejection failed");
+        }
+    };
+
     // Fetch Global Student List
     const { data: students, isLoading } = useQuery({
         queryKey: ['global-students-widget', filters, debouncedSearch],
@@ -212,6 +234,7 @@ const StudentListWidget: React.FC<StudentListWidgetProps> = ({ filters, onFilter
                     options={{
                         meta: {
                             onDelete: (user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'faculty') ? handleDeleteActivity : undefined,
+                            onReject: (user?.role?.toLowerCase() === 'admin' || user?.role?.toLowerCase() === 'faculty') ? handleRejectActivity : undefined,
                             user
                         },
                         emptyState: {

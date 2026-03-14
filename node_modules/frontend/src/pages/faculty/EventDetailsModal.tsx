@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Loader2, Users, CheckCircle2, AlertCircle, Clock, Plus, Trash2, UserPlus, Eye, Edit2, X, Save } from 'lucide-react';
+import { Loader2, Users, CheckCircle2, AlertCircle, Clock, Plus, Trash2, UserPlus, Eye, Edit2, X, Save, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/services/api';
 
@@ -130,6 +130,23 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
             toast.error(err.error || 'Failed to remove student');
         } finally {
             setRemovingId(null);
+        }
+    };
+
+    const handleRejectStudent = async (activityId: number, studentName: string, title: string) => {
+        const confirmMsg = `Are you sure you want to undo approval for "${studentName}"? This will notify the student to re-upload.`;
+        if (!window.confirm(confirmMsg)) return;
+
+        const reason = window.prompt("Reason for rejection:", "Incorrect document or blurry image");
+        if (reason === null) return;
+
+        try {
+            await api.post(`/faculty/reject/${activityId}`, { faculty_comment: reason });
+            toast.success(`Approval undone for ${studentName}`);
+            fetchStudents();
+            onRosterChanged?.();
+        } catch (err: any) {
+            toast.error(err.error || 'Failed to undo approval');
         }
     };
 
@@ -400,10 +417,21 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
                                                                     variant="ghost"
                                                                     size="icon"
                                                                     className="h-8 w-8 text-indigo-500 hover:text-indigo-700"
-                                                                    onClick={() => window.open(api.defaults.baseURL + '/public/certificate/' + student.certificate_file, '_blank')}
+                                                                    onClick={() => window.open(api.defaults.baseURL + '/api/public/certificate/' + student.certificate_file, '_blank')}
                                                                     title="View Document"
                                                                 >
                                                                     <Eye className="h-4 w-4" />
+                                                                </Button>
+                                                            )}
+                                                            {canEdit && (student.status.includes('verified') || student.status === 'hod_approved' || student.status === 'pending') && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-8 w-8 text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+                                                                    onClick={() => handleRejectStudent(student.activity_id, student.student_name, event.title)}
+                                                                    title="Undo Approval / Reject"
+                                                                >
+                                                                    <XCircle className="h-4 w-4" />
                                                                 </Button>
                                                             )}
                                                             {canEdit && (

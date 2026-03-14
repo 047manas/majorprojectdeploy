@@ -692,7 +692,7 @@ class AnalyticsService:
             cert_url = None
             if item.certificate_file:
                 try:
-                    cert_url = url_for('student.serve_upload', filename=item.certificate_file, _external=True)
+                    cert_url = url_for('public.serve_public_certificate', filename=item.certificate_file, _external=True)
                 except Exception:
                     cert_url = None
             row["certificate_url"] = cert_url
