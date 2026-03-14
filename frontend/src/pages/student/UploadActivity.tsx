@@ -13,6 +13,7 @@ import { useAuth } from '@/context/AuthContext';
 interface ActivityType {
     id: number;
     name: string;
+    description?: string;
 }
 
 const UploadActivity = () => {
@@ -289,8 +290,8 @@ const UploadActivity = () => {
                                         className="flex h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm px-3.5 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:border-indigo-400 dark:focus-visible:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200"
                                         value={typeId}
                                         onChange={(e) => setTypeId(e.target.value)}
-                                        disabled={!!attendanceActivityId && originalFields.activity_type_id}
-                                        required={!attendanceActivityId || !originalFields.activity_type_id}
+                                        disabled={!!attendanceActivityId}
+                                        required={!attendanceActivityId}
                                     >
                                         <option value="">Select Category...</option>
                                         {types.map(t => (
@@ -303,13 +304,13 @@ const UploadActivity = () => {
                                 {typeId === 'other' && (
                                     <div className="space-y-2">
                                         <Label className="font-semibold">Custom Category Name</Label>
-                                        <Input value={customCategory} onChange={e => setCustomCategory(e.target.value)} required disabled={!!attendanceActivityId && originalFields.activity_type_id} />
+                                        <Input value={customCategory} onChange={e => setCustomCategory(e.target.value)} required disabled={!!attendanceActivityId} />
                                     </div>
                                 )}
 
                                 <div className="space-y-2 col-span-2">
                                     <Label className="font-semibold">Activity Title</Label>
-                                    <Input placeholder="e.g. Winner in Hackathon" value={title} onChange={e => setTitle(e.target.value)} disabled={!!attendanceActivityId && originalFields.title} required />
+                                    <Input placeholder="e.g. Winner in Hackathon" value={title} onChange={e => setTitle(e.target.value)} disabled={!!attendanceActivityId} required />
                                 </div>
 
                                 <div className="space-y-2">
@@ -325,11 +326,11 @@ const UploadActivity = () => {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label className="font-semibold">Start Date</Label>
-                                        <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} disabled={!!attendanceActivityId && originalFields.start_date} required={!attendanceActivityId || !originalFields.start_date} />
+                                        <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} disabled={!!attendanceActivityId} required={!attendanceActivityId} />
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="font-semibold">End Date (optional)</Label>
-                                        <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} disabled={!!attendanceActivityId && originalFields.end_date} />
+                                        <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} disabled={!!attendanceActivityId} />
                                     </div>
                                 </div>
                             </div>

@@ -19,6 +19,7 @@ interface Activity {
     custom_category?: string;
     activity_type_name?: string;
     audit_trail?: any[];
+    is_attendance_uploaded?: boolean;
 }
 
 interface ActivityType {
@@ -129,6 +130,7 @@ const ActivityEditModal: React.FC<ActivityEditModalProps> = ({ isOpen, onClose, 
                             placeholder="e.g. Workshop on Robotics"
                             className="h-11 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900/50 dark:border-slate-800 focus:ring-2 focus:ring-indigo-500/20"
                             required
+                            disabled={activity?.is_attendance_uploaded}
                         />
                     </div>
 
@@ -152,6 +154,7 @@ const ActivityEditModal: React.FC<ActivityEditModalProps> = ({ isOpen, onClose, 
                                 className="flex h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/20 dark:border-slate-800 dark:bg-slate-900/50"
                                 value={formData.activity_type_id}
                                 onChange={handleChange}
+                                disabled={activity?.is_attendance_uploaded}
                             >
                                 <option value="">Select Category</option>
                                 {activityTypes.map(type => (
@@ -171,6 +174,7 @@ const ActivityEditModal: React.FC<ActivityEditModalProps> = ({ isOpen, onClose, 
                                 onChange={handleChange}
                                 className="h-11 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900/50 dark:border-slate-800"
                                 required
+                                disabled={activity?.is_attendance_uploaded}
                             />
                         </div>
 
@@ -182,6 +186,7 @@ const ActivityEditModal: React.FC<ActivityEditModalProps> = ({ isOpen, onClose, 
                                 value={formData.end_date}
                                 onChange={handleChange}
                                 className="h-11 rounded-xl bg-slate-50 border-slate-200 dark:bg-slate-900/50 dark:border-slate-800"
+                                disabled={activity?.is_attendance_uploaded}
                             />
                         </div>
                     </div>

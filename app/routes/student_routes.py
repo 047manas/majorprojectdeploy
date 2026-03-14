@@ -424,14 +424,45 @@ def edit_activity(activity_id):
             filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
             file.save(filepath)
             
-            activity.certificate_file = filename
-            activity.certificate_hash = hashstore.calculate_file_hash(filepath)
+            # --- Verification Logic for Re-upload ---
+            file_hash = hashstore.calculate_file_hash(filepath)
             
-    # Reset status on edit to re-trigger verification (manual or auto)
-    activity.status = 'pending'
-    activity.verification_token = None
-    activity.verification_mode = None
-    activity.faculty_comment = None
+            verifier = VerificationService()
+            verification = verifier.verify(filepath)
+            
+            status = 'pending'
+            auto_decision = verification['auto_decision']
+            
+            # Check for existing verified hash
+            approved_record = hashstore.lookup_hash(file_hash)
+            if approved_record:
+                status = 'auto_verified'
+                auto_decision = "Verified by previously stored hash (tamper-proof)."
+            elif verification['strong_auto']:
+                status = 'auto_verified'
+                
+            # Upload to Cloud
+            public_url, is_cloud = storage_service.upload_file(filepath, filename)
+
+            activity.certificate_file = filename
+            activity.certificate_hash = file_hash
+            activity.urls_json = json.dumps(verification['urls'])
+            activity.ids_json = json.dumps(verification['ids'])
+            activity.status = status
+            activity.auto_decision = auto_decision
+            activity.verification_mode = verification.get('verification_mode', 'text_only')
+            activity.auto_details = verification.get('auto_details')
+            activity.verification_token = secrets.token_urlsafe(16)
+            activity.faculty_comment = None
+        else:
+            # Metadata only update - still reset to pending to be safe, or keep current?
+            # Usually, if they change the title/issuer, it needs re-verification.
+            activity.status = 'pending'
+            activity.faculty_comment = None
+    else:
+        # Metadata only update (no certificate in request)
+        activity.status = 'pending'
+        activity.faculty_comment = None
     
     db.session.commit()
     
@@ -472,7 +503,8 @@ def get_activity(activity_id):
             'start_date': activity.start_date.isoformat() if activity.start_date else '',
             'end_date': activity.end_date.isoformat() if activity.end_date else '',
             'campus_type': activity.campus_type,
-            'status': activity.status
+            'status': activity.status,
+            'is_attendance_uploaded': activity.is_attendance_uploaded
         }
     })
 
