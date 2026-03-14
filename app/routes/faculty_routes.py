@@ -657,13 +657,13 @@ def remove_student_from_event(activity_id):
     if not activity.is_attendance_uploaded:
         return jsonify({'error': 'This is not an attendance record.'}), 400
 
-    # Only pending_upload can be removed
-    if activity.status != 'pending_upload':
-        return jsonify({'error': 'Cannot remove — student has already uploaded their certificate.'}), 400
-
     # Permission: only event in-charge or admin
     if current_user.role == 'faculty' and activity.attendance_uploaded_by != current_user.id:
         return jsonify({'error': 'Only the event in-charge can modify the roster.'}), 403
+
+    # Cleanup: if there's a file, we should probably delete it or at least mark it
+    if activity.certificate_file:
+        storage_service.delete_file(activity.certificate_file)
 
     # Cleanup pending notifications for this specific activity
     Notification.query.filter(

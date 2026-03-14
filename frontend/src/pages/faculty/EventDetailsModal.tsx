@@ -125,16 +125,31 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
     };
 
     const handleRemoveStudent = async (activityId: number) => {
-        if (!window.confirm('Remove this student from the event roster?')) return;
+        if (!window.confirm('Remove this student from the event roster? This will also delete any uploaded certificate.')) return;
         setRemovingId(activityId);
         try {
             await api.delete(`/faculty/event/remove-student/${activityId}`);
+            toast.success('Student removed from roster');
             fetchStudents();
             onRosterChanged?.();
         } catch (err: any) {
             toast.error(err.error || 'Failed to remove student');
         } finally {
             setRemovingId(null);
+        }
+    };
+
+    const handleUndoApproval = async (activityId: number) => {
+        const reason = window.prompt("Reason for undoing approval / rejecting:", "Mistakenly approved certificate");
+        if (reason === null) return;
+
+        try {
+            await api.post(`/faculty/reject/${activityId}`, { faculty_comment: reason });
+            toast.success("Approval undone. Record set to rejected.");
+            fetchStudents();
+            onRosterChanged?.();
+        } catch (err: any) {
+            toast.error(err.error || "Failed to undo approval");
         }
     };
 
@@ -424,20 +439,36 @@ const EventDetailsModal: React.FC<EventDetailsModalProps> = ({ isOpen, onClose, 
                                                             </Button>
                                                         )}
 
-                                                        {canEdit && student.status === 'pending_upload' && (
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="icon"
-                                                                className="h-7 w-7 text-slate-400 hover:text-rose-600"
-                                                                onClick={() => handleRemoveStudent(student.activity_id)}
-                                                                disabled={removingId === student.activity_id}
-                                                                title="Remove from roster"
-                                                            >
-                                                                {removingId === student.activity_id
-                                                                    ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                                    : <Trash2 className="h-3.5 w-3.5" />
-                                                                }
-                                                            </Button>
+                                                        {canEdit && (
+                                                            <div className="flex items-center gap-1">
+                                                                {/* Undo Approval / Reject option for already uploaded items */}
+                                                                {student.status !== 'pending_upload' && student.status !== 'rejected' && (
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="icon"
+                                                                        className="h-7 w-7 text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+                                                                        onClick={() => handleUndoApproval(student.activity_id)}
+                                                                        title="Undo Approval / Reject"
+                                                                    >
+                                                                        <X className="h-3.5 w-3.5" />
+                                                                    </Button>
+                                                                )}
+
+                                                                {/* Direct Deletion for any status */}
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="icon"
+                                                                    className="h-7 w-7 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                                                                    onClick={() => handleRemoveStudent(student.activity_id)}
+                                                                    disabled={removingId === student.activity_id}
+                                                                    title="Remove from roster"
+                                                                >
+                                                                    {removingId === student.activity_id
+                                                                        ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                                        : <Trash2 className="h-3.5 w-3.5" />
+                                                                    }
+                                                                </Button>
+                                                            </div>
                                                         )}
 
                                                         {!canEdit && <span className="text-xs text-slate-300 dark:text-slate-600">—</span>}
