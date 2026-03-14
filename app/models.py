@@ -1,7 +1,7 @@
-
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from datetime import datetime
+from sqlalchemy.orm import validates
 
 # Initialize SQLAlchemy
 db = SQLAlchemy()
@@ -29,6 +29,13 @@ class User(UserMixin, db.Model):
     
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
     
+    @validates('email')
+    def validate_email(self, key, address):
+        """Always store email in lowercase."""
+        if address:
+            return address.lower().strip()
+        return address
+
     def __repr__(self):
         return f'<User {self.email}>'
 

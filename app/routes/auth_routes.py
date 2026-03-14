@@ -24,7 +24,7 @@ def login():
     if not data:
         return error_response('Invalid request data', 400)
         
-    email = data.get('email', '').strip().lower()
+    email = data.get('email')
     password = data.get('password')
     
     user = User.query.filter_by(email=email).first()
@@ -72,28 +72,3 @@ def get_current_user():
         'institution_id': current_user.institution_id
     })
 
-@auth_bp.route('/diag', methods=['GET'])
-def diag():
-    """
-    Hidden diagnostic endpoint to verify user existence without revealing secrets.
-    Usage: /api/auth/diag?email=admin@example.com
-    """
-    email = request.args.get('email', '').strip().lower()
-    if not email:
-        return jsonify({'error': 'Email parameter required'}), 400
-        
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        return jsonify({
-            'status': 'not_found',
-            'suggested_fix': 'Ensure the user was created in the production database.'
-        })
-        
-    return jsonify({
-        'status': 'found',
-        'is_active': user.is_active,
-        'role': user.role,
-        'has_hash': bool(user.password_hash),
-        'hash_len': len(user.password_hash) if user.password_hash else 0,
-        'full_name': user.full_name
-    })
