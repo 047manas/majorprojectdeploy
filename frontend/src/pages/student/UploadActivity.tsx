@@ -61,59 +61,63 @@ const UploadActivity = () => {
             const parsedId = parseInt(activityId);
             if (!isNaN(parsedId)) {
                 setAttendanceActivityId(parsedId);
+                
+                // Fetch full activity details from backend
+                api.get(`/student/activity/${parsedId}`)
+                    .then(response => {
+                        const data = response.data.activity;
+                        if (!data) return;
+
+                        // Pre-fill and track which fields were originally provided
+                        const original: Record<string, boolean> = {};
+
+                        if (data.title) {
+                            setTitle(data.title || '');
+                            original.title = true;
+                        }
+
+                        setCampusType(data.campus_type || 'in_campus');
+                        original.campus_type = !!data.campus_type;
+
+                        if (data.activity_type_id) {
+                            setTypeId(String(data.activity_type_id));
+                            original.activity_type_id = true;
+                        }
+
+                        if (data.issuer_name) {
+                            setIssuer(data.issuer_name);
+                            original.issuer_name = true;
+                        } else {
+                            original.issuer_name = false;
+                        }
+
+                        if (data.start_date) {
+                            const sDate = data.start_date.split('T')[0];
+                            setStartDate(sDate);
+                            original.start_date = true;
+                        }
+
+                        if (data.end_date) {
+                            const eDate = data.end_date.split('T')[0];
+                            setEndDate(eDate);
+                            original.end_date = true;
+                        }
+
+                        setOriginalFields(original);
+                    })
+                    .catch(err => {
+                        console.error("Failed to fetch activity details for prefill", err);
+                        const prefillTitle = searchParams.get('title');
+                        if (prefillTitle) setTitle(prefillTitle);
+                        setCampusType('in_campus');
+                    });
             } else {
                 console.warn("Invalid activity_id in prefill params:", activityId);
+                // Fallback for missing/invalid activity_id
+                const prefillTitle = searchParams.get('title');
+                if (prefillTitle) setTitle(prefillTitle);
+                setCampusType('in_campus');
             }
-
-            // Fetch full activity details from backend
-            api.get(`/student/activity/${parsedId}`)
-                .then(response => {
-                    const data = response.data.activity;
-
-                    // Pre-fill and track which fields were originally provided
-                    const original: Record<string, boolean> = {};
-
-                    if (data.title) {
-                        setTitle(data.title);
-                        original.title = true;
-                    }
-
-                    setCampusType(data.campus_type || 'in_campus');
-                    original.campus_type = !!data.campus_type;
-
-                    if (data.activity_type_id) {
-                        setTypeId(String(data.activity_type_id));
-                        original.activity_type_id = true;
-                    }
-
-                    if (data.issuer_name) {
-                        setIssuer(data.issuer_name);
-                        original.issuer_name = true;
-                    } else {
-                        // Issuer blank — student should fill it
-                        original.issuer_name = false;
-                    }
-
-                    if (data.start_date) {
-                        const sDate = data.start_date.split('T')[0];
-                        setStartDate(sDate);
-                        original.start_date = true;
-                    }
-
-                    if (data.end_date) {
-                        const eDate = data.end_date.split('T')[0];
-                        setEndDate(eDate);
-                        original.end_date = true;
-                    }
-
-                    setOriginalFields(original);
-                })
-                .catch(err => {
-                    console.error("Failed to fetch activity details for prefill", err);
-                    const prefillTitle = searchParams.get('title');
-                    setTitle(prefillTitle || '');
-                    setCampusType('in_campus');
-                });
 
             // Clear params from URL without triggering re-render if possible, or only once
             // Clear search params to prevent multiple triggers if we stay on the page
@@ -171,13 +175,12 @@ const UploadActivity = () => {
         const formData = new FormData();
         formData.append('file', file);
 
-        // Append metadata if they were modified/filled
-        if (!originalFields.title && title) formData.append('title', title);
-        if (!originalFields.activity_type_id && typeId) formData.append('activity_type_id', typeId);
-        // Always send issuer if student filled it (covers blank-from-faculty case)
+        // Always send metadata to ensure any modifications or missing faculty data are captured
+        if (title) formData.append('title', title);
+        if (typeId) formData.append('activity_type_id', typeId);
         if (issuer) formData.append('issuer_name', issuer);
-        if (!originalFields.start_date && startDate) formData.append('start_date', startDate);
-        if (!originalFields.end_date && endDate) formData.append('end_date', endDate);
+        if (startDate) formData.append('start_date', startDate);
+        if (endDate) formData.append('end_date', endDate);
 
         try {
             const response = await api.post(

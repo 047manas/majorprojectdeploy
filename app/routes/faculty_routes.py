@@ -357,7 +357,8 @@ def upload_attendance():
     not_found = []
     already_exists = []
 
-    # First pass: Validate all roll numbers
+    # First pass: Filter out invalid roll numbers and identify existing records
+    to_process = []
     for roll in roll_numbers:
         student = User.query.filter_by(institution_id=roll, role='student').first()
         if not student:
@@ -370,24 +371,21 @@ def upload_attendance():
             start_date=start_date,
             is_deleted=False
         ).first()
+        
         if existing:
             already_exists.append(roll)
             continue
+            
+        to_process.append(roll)
 
     if not_found:
         return jsonify({
-            'error': f"The following roll numbers are not registered students in the system: {', '.join(not_found)}. Please check the list and try again.",
+            'error': f"The following roll numbers are not registered students: {', '.join(not_found)}.",
             'not_found': not_found
         }), 400
 
-    if already_exists:
-        return jsonify({
-            'error': f"The following roll numbers are already registered for this event: {', '.join(already_exists)}.",
-            'already_exists': already_exists
-        }), 400
-
-    # Second pass: Create the records
-    for roll in roll_numbers:
+    # Second pass: Create the records for new entries only
+    for roll in to_process:
         student = User.query.filter_by(institution_id=roll, role='student').first()
         # Create the pending_upload record
         new_activity = StudentActivity(
@@ -603,8 +601,13 @@ def add_student_to_event():
         start_date=start_date,
         is_deleted=False
     ).first()
+    
     if existing:
-        return jsonify({'error': f'Student {roll_number} is already in this event roster.'}), 400
+        return jsonify({
+            'success': True, 
+            'message': f'Student {student.full_name} is already in the event roster.',
+            'already_exists': True
+        })
 
     # Create the record
     new_activity = StudentActivity(
@@ -621,6 +624,7 @@ def add_student_to_event():
         attendance_uploaded_by=sample_record.attendance_uploaded_by,
     )
     db.session.add(new_activity)
+    db.session.flush() # Ensure new_activity.id is populated for the notification
 
     # Notify the student
     notif = Notification(
@@ -661,10 +665,11 @@ def remove_student_from_event(activity_id):
     if current_user.role == 'faculty' and activity.attendance_uploaded_by != current_user.id:
         return jsonify({'error': 'Only the event in-charge can modify the roster.'}), 403
 
-    # Soft delete
-    if activity.certificate_file:
-        storage_service.delete_file(activity.certificate_file)
-        
+    # Cleanup pending notifications for this specific activity
+    Notification.query.filter(
+        Notification.action_data.contains(f'"activity_id": {activity.id}')
+    ).delete(synchronize_session=False)
+
     activity.is_deleted = True
     activity.deletion_reason = f'Removed from roster by {current_user.full_name}'
     db.session.commit()

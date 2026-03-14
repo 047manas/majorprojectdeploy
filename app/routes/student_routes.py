@@ -508,11 +508,16 @@ def delete_activity(activity_id):
         db.session.add(notif)
 
     # Note: We do NOT hard-delete existing notifications anymore (managed by is_completed in get_notifications)
+    # However, we DO want to remove "Upload Required" notifications if the activity is deleted
+    Notification.query.filter(
+        Notification.action_data.contains(f'"activity_id": {activity.id}')
+    ).delete(synchronize_session=False)
     
-    db.session.delete(activity)
+    activity.is_deleted = True
+    activity.deletion_reason = 'Withdrawn by student'
     db.session.commit()
     
-    return jsonify({'success': True, 'message': 'Activity deleted successfully'})
+    return jsonify({'success': True, 'message': 'Activity withdrawn successfully'})
 
 @student_bp.route('/notifications', methods=['GET'])
 @login_required

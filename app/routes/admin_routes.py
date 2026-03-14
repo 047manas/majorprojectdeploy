@@ -339,11 +339,13 @@ def admin_delete_activity(activity_id):
     # Mark the activity as deleted in the DB instead of hard delete if we want to preserve audit trail?
     # Actually, the user wants it "deleted from list" but notifications to stay.
     
-    # Cleanup Cloud Storage
-    if activity.certificate_file:
-        storage_service.delete_file(activity.certificate_file)
+    # Cleanup pending notifications for this specific activity
+    Notification.query.filter(
+        Notification.action_data.contains(f'"activity_id": {activity.id}')
+    ).delete(synchronize_session=False)
         
-    db.session.delete(activity)
+    activity.is_deleted = True
+    activity.deletion_reason = reason
     db.session.commit()
     
-    return jsonify({'success': True, 'message': 'Student activity permanently deleted.'})
+    return jsonify({'success': True, 'message': 'Student activity record soft-deleted.'})
