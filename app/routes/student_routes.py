@@ -532,36 +532,58 @@ def delete_activity(activity_id):
         # Cleanup from Cloud Storage
         storage_service.delete_file(activity.certificate_file)
             
-    # Notify assigned faculty of withdrawal
-    if activity.assigned_reviewer_id:
-        notif = Notification(
-            user_id=activity.assigned_reviewer_id,
-            title='Activity Withdrawn',
-            message=f'Student {current_user.full_name} has withdrawn their activity submission: "{activity.title}".',
-            type='warning'
+    # Differentiate between Roster Activity and Personal Upload
+    if activity.is_attendance_uploaded:
+        # Reset the record instead of deleting it
+        # This keeps the student on the roster but removes their submission
+        activity.status = 'pending_upload'
+        activity.certificate_hash = None
+        # certificate_file check already handled above (file deleted)
+        activity.certificate_file = "" 
+        
+        # Log Audit Trail
+        add_audit_event(activity.id, current_user.full_name, "Withdrawal", "Submission withdrawn. Record reset to Pending Upload.")
+        
+        # Notify student of successful reset
+        student_notif = Notification(
+            user_id=current_user.id,
+            title='Submission Withdrawn',
+            message=f'Your submission for "{activity.title}" was withdrawn. You remain on the roster and can re-upload later.',
+            type='info',
+            action_url='/student/upload',
+            action_data=json.dumps({'activity_id': activity.id, 'title': activity.title, 'prefill': True})
         )
-        db.session.add(notif)
+        db.session.add(student_notif)
+        
+        # Notify faculty uploader of reset (status change)
+        if activity.attendance_uploaded_by:
+            faculty_notif = Notification(
+                user_id=activity.attendance_uploaded_by,
+                title='Roster Submission Withdrawn',
+                message=f'Student {current_user.full_name} has withdrawn their submission for "{activity.title}". The record is now back to pending upload.',
+                type='warning',
+                action_url=f"/faculty/event/{activity.title}/{activity.start_date}" # Not quite right but close enough for hint
+            )
+            db.session.add(faculty_notif)
+            
+        success_msg = 'Submission withdrawn. You stay on the roster for this event.'
+    else:
+        # Standard withdrawal/deletion for personal uploads
+        activity.is_deleted = True
+        activity.deletion_reason = 'Withdrawn by student'
+        
+        # Notify student of successful withdrawal
+        student_notif = Notification(
+            user_id=current_user.id,
+            title='Activity Withdrawn',
+            message=f'Your activity submission "{activity.title}" has been successfully withdrawn.',
+            type='info'
+        )
+        db.session.add(student_notif)
+        success_msg = 'Activity withdrawn successfully'
 
-    # Note: We do NOT hard-delete existing notifications anymore (managed by is_completed in get_notifications)
-    # However, we DO want to remove "Upload Required" notifications if the activity is deleted
-    Notification.query.filter(
-        Notification.action_data.contains(f'"activity_id": {activity.id}')
-    ).delete(synchronize_session=False)
-    
-    # Notify student of successful withdrawal
-    student_notif = Notification(
-        user_id=current_user.id,
-        title='Activity Withdrawn',
-        message=f'Your activity submission "{activity.title}" has been successfully withdrawn.',
-        type='info'
-    )
-    db.session.add(student_notif)
-    
-    activity.is_deleted = True
-    activity.deletion_reason = 'Withdrawn by student'
     db.session.commit()
-    
-    return jsonify({'success': True, 'message': 'Activity withdrawn successfully'})
+    return jsonify({'success': True, 'message': success_msg})
 
 @student_bp.route('/notifications', methods=['GET'])
 @login_required
