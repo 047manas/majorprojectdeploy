@@ -240,7 +240,23 @@ def reject_request(act_id):
     data = request.get_json()
     comment = data.get('faculty_comment', '')
     
-    activity.status = 'rejected'
+    # Cleanup: Delete the old certificate if it exists
+    if activity.certificate_file:
+        import os
+        filepath = os.path.join(current_app.config['UPLOAD_FOLDER'], activity.certificate_file)
+        if os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except Exception as e:
+                current_app.logger.error(f"Error deleting rejected file: {e}")
+        
+        # Cleanup from Cloud Storage
+        storage_service.delete_file(activity.certificate_file)
+
+    # Reset the record for re-upload
+    activity.status = 'pending_upload' # Reset to allow re-upload via student flow
+    activity.certificate_file = "" 
+    activity.certificate_hash = None
     activity.faculty_id = current_user.id
     activity.faculty_comment = comment
     
