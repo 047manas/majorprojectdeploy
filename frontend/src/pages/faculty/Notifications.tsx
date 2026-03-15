@@ -53,6 +53,7 @@ const FacultyNotifications = () => {
 
     useEffect(() => {
         fetchNotifications();
+        markAllRead(); // Clearing badges on entry
         const interval = setInterval(() => fetchNotifications(), 30000);
         return () => clearInterval(interval);
     }, []);
@@ -60,6 +61,7 @@ const FacultyNotifications = () => {
     const markAllRead = async () => {
         try {
             await api.post('/faculty/notifications/read-all');
+            window.dispatchEvent(new Event('notificationsRead'));
             fetchNotifications();
         } catch (error) {
             console.error("Error marking all read", error);

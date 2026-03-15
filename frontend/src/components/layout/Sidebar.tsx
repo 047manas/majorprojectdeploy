@@ -67,11 +67,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, toggleCollapse, isMobile
     useEffect(() => {
         fetchPendingCount();
         fetchNotifCount();
+        
+        window.addEventListener('notificationsRead', fetchNotifCount);
         const interval = setInterval(() => {
             fetchPendingCount();
             fetchNotifCount();
         }, 30000);
-        return () => clearInterval(interval);
+        
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('notificationsRead', fetchNotifCount);
+        };
     }, [fetchPendingCount, fetchNotifCount]);
 
     if (!user) return null;

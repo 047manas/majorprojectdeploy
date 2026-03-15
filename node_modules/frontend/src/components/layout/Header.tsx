@@ -74,8 +74,13 @@ const Header: React.FC<HeaderProps> = ({ onToggleMobileMenu }) => {
         };
 
         fetchNotifCount();
+        window.addEventListener('notificationsRead', fetchNotifCount);
         const interval = setInterval(fetchNotifCount, 30000);
-        return () => clearInterval(interval);
+        
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('notificationsRead', fetchNotifCount);
+        };
     }, [user?.role]);
 
     React.useEffect(() => {
