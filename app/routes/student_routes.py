@@ -53,12 +53,35 @@ def dashboard():
     
     # Also return activity types for the dropdown
     activity_types = ActivityType.query.all()
-    types_data = [{'id': at.id, 'name': at.name} for at in activity_types]
+    types_data = [{
+        'id': at.id, 
+        'name': at.name, 
+        'default_campus_type': at.default_campus_type or 'off_campus',
+        'description': at.description
+    } for at in activity_types]
+
+    # Available in-campus slots (roster entries waiting for certificate)
+    in_campus_slots = StudentActivity.query.filter_by(
+        student_id=current_user.id,
+        campus_type='in_campus',
+        is_deleted=False
+    ).filter(StudentActivity.status.in_(['pending_upload', 'rejected'])).all()
+    
+    slots_data = [{
+        'id': s.id,
+        'title': s.title,
+        'activity_type_id': s.activity_type_id,
+        'activity_type_name': s.activity_type.name if s.activity_type else 'Other',
+        'issuer_name': s.issuer_name,
+        'start_date': s.start_date.isoformat() if s.start_date else None,
+        'end_date': s.end_date.isoformat() if s.end_date else None,
+        'status': s.status
+    } for s in in_campus_slots]
         
-    # Remove POST handling from dashboard
     return jsonify({
         'activities': activities_data,
         'activity_types': types_data,
+        'in_campus_slots': slots_data,
         'user_roll_no': current_user.institution_id
     })
 
@@ -78,6 +101,9 @@ def upload_activity():
     start_date_str = request.form.get('start_date')
     end_date_str = request.form.get('end_date')
     campus_type = request.form.get('campus_type', 'off_campus')
+    if campus_type == 'in_campus':
+        return jsonify({'error': "In-campus activities must be initiated by faculty roster list. Please select a pre-provided slot or contact your coordinator."}), 400
+    
     if campus_type not in ('in_campus', 'off_campus'):
         campus_type = 'off_campus'
 

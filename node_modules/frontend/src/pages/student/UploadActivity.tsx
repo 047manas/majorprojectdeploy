@@ -39,19 +39,28 @@ const UploadActivity = () => {
 
     const [uploadSuccess, setUploadSuccess] = useState(false);
 
+    const [inCampusSlots, setInCampusSlots] = useState<any[]>([]);
+    const [selectedSlotId, setSelectedSlotId] = useState<string>('');
+
     useEffect(() => {
-        const fetchTypes = async () => {
+        const fetchData = async () => {
             try {
                 const response = await api.get('/student/');
                 if (response.data.activity_types) {
                     setTypes(response.data.activity_types);
                 }
+                if (response.data.in_campus_slots) {
+                    setInCampusSlots(response.data.in_campus_slots);
+                }
             } catch (error) {
                 console.error("Failed to load types", error);
             }
         };
-        fetchTypes();
+        fetchData();
     }, []);
+
+    // Filtered activity types based on campus category
+    const filteredTypes = types.filter(t => (t as any).default_campus_type === campusType || campusType === 'off_campus');
 
     // Handle pre-fill from notification click
     useEffect(() => {
@@ -262,8 +271,16 @@ const UploadActivity = () => {
                                         name="campus_type"
                                         value="off_campus"
                                         checked={campusType === 'off_campus'}
-                                        onChange={() => setCampusType('off_campus')}
-                                        disabled={!!attendanceActivityId}
+                                        onChange={() => {
+                                            setCampusType('off_campus');
+                                            setAttendanceActivityId(null);
+                                            setTypeId('');
+                                            setTitle('');
+                                            setIssuer('');
+                                            setStartDate('');
+                                            setEndDate('');
+                                        }}
+                                        disabled={!!attendanceActivityId && !!searchParams.get('activity_id')}
                                         className="accent-indigo-600"
                                     />
                                     <span className="text-sm font-medium">Off Campus</span>
@@ -274,13 +291,70 @@ const UploadActivity = () => {
                                         name="campus_type"
                                         value="in_campus"
                                         checked={campusType === 'in_campus'}
-                                        onChange={() => setCampusType('in_campus')}
-                                        disabled={!!attendanceActivityId}
+                                        onChange={() => {
+                                            setCampusType('in_campus');
+                                            setAttendanceActivityId(null);
+                                            setTypeId('');
+                                            setTitle('');
+                                            setIssuer('');
+                                            setStartDate('');
+                                            setEndDate('');
+                                        }}
+                                        disabled={!!attendanceActivityId && !!searchParams.get('activity_id')}
                                         className="accent-indigo-600"
                                     />
                                     <span className="text-sm font-medium">In Campus</span>
                                 </label>
                             </div>
+
+                            {campusType === 'in_campus' && !searchParams.get('activity_id') && (
+                                <div className="space-y-4 p-4 bg-indigo-50/30 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-900/30 animate-in fade-in slide-in-from-top-2">
+                                    <div className="space-y-2">
+                                        <Label className="font-bold text-indigo-900 dark:text-indigo-300">Select Attended Event</Label>
+                                        <select
+                                            className="flex h-11 w-full rounded-xl border-2 border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-semibold ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:border-indigo-400 transition-all"
+                                            value={selectedSlotId}
+                                            onChange={(e) => {
+                                                const id = e.target.value;
+                                                setSelectedSlotId(id);
+                                                const slot = inCampusSlots.find(s => String(s.id) === id);
+                                                if (slot) {
+                                                    setAttendanceActivityId(slot.id);
+                                                    setTitle(slot.title);
+                                                    setTypeId(String(slot.activity_type_id));
+                                                    setIssuer(slot.issuer_name || '');
+                                                    setStartDate(slot.start_date || '');
+                                                    setEndDate(slot.end_date || '');
+                                                } else {
+                                                    setAttendanceActivityId(null);
+                                                    setTitle('');
+                                                    setTypeId('');
+                                                    setIssuer('');
+                                                    setStartDate('');
+                                                    setEndDate('');
+                                                }
+                                            }}
+                                            required={campusType === 'in_campus'}
+                                        >
+                                            <option value="">-- Choose an event you participated in --</option>
+                                            {inCampusSlots.length === 0 ? (
+                                                <option disabled>No pending in-campus workshops found</option>
+                                            ) : (
+                                                inCampusSlots.map(s => (
+                                                    <option key={s.id} value={s.id}>
+                                                        {s.title} ({s.activity_type_name}) - {s.start_date}
+                                                    </option>
+                                                ))
+                                            )}
+                                        </select>
+                                        {inCampusSlots.length === 0 && (
+                                            <p className="text-xs text-rose-500 font-medium mt-1 ml-1">
+                                                You haven't been marked present for any in-campus workshops yet.
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
@@ -289,14 +363,14 @@ const UploadActivity = () => {
                                         className="flex h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm px-3.5 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500/40 focus-visible:border-indigo-400 dark:focus-visible:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-50 transition-all duration-200"
                                         value={typeId}
                                         onChange={(e) => setTypeId(e.target.value)}
-                                        disabled={!!attendanceActivityId}
+                                        disabled={!!attendanceActivityId || campusType === 'in_campus'}
                                         required={!attendanceActivityId}
                                     >
                                         <option value="">Select Category...</option>
-                                        {types.map(t => (
+                                        {(campusType === 'in_campus' ? types : filteredTypes).map(t => (
                                             <option key={t.id} value={t.id}>{t.name} - {t.description}</option>
                                         ))}
-                                        <option value="other">Other / Custom</option>
+                                        {campusType === 'off_campus' && <option value="other">Other / Custom</option>}
                                     </select>
                                 </div>
 
@@ -309,7 +383,13 @@ const UploadActivity = () => {
 
                                 <div className="space-y-2 col-span-2">
                                     <Label className="font-semibold">Activity Title</Label>
-                                    <Input placeholder="e.g. Winner in Hackathon" value={title} onChange={e => setTitle(e.target.value)} disabled={!!attendanceActivityId} required />
+                                    <Input 
+                                        placeholder="e.g. Winner in Hackathon" 
+                                        value={title} 
+                                        onChange={e => setTitle(e.target.value)} 
+                                        disabled={!!attendanceActivityId || campusType === 'in_campus'} 
+                                        required 
+                                    />
                                 </div>
 
                                 <div className="space-y-2">
@@ -325,11 +405,11 @@ const UploadActivity = () => {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label className="font-semibold">Start Date</Label>
-                                        <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} disabled={!!attendanceActivityId} required={!attendanceActivityId} />
+                                        <Input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} disabled={!!attendanceActivityId || campusType === 'in_campus'} required={!attendanceActivityId} />
                                     </div>
                                     <div className="space-y-2">
                                         <Label className="font-semibold">End Date (optional)</Label>
-                                        <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} disabled={!!attendanceActivityId} />
+                                        <Input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} disabled={!!attendanceActivityId || campusType === 'in_campus'} />
                                     </div>
                                 </div>
                             </div>
