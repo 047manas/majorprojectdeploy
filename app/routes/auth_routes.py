@@ -27,13 +27,22 @@ def login():
     email = data.get('email')
     password = data.get('password')
     
+    import time
+    start_time = time.time()
+    
     user = User.query.filter_by(email=email).first()
+    db_time = time.time() - start_time
     
     if user and check_password_hash(user.password_hash, password):
+        hash_time = time.time() - (start_time + db_time)
+        
         if not user.is_active:
             return error_response('Account deactivated. Contact administrator.', 403)
             
         login_user(user)
+        
+        # Log performance
+        logging.info(f"Login success for {email}: DB={db_time:.3f}s, Hash={hash_time:.3f}s, Total={time.time()-start_time:.3f}s")
         
         user_data = {
             'id': user.id,

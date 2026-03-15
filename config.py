@@ -7,6 +7,18 @@ class Config:
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key')
     SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'postgresql://postgres:root%40123@localhost:5432/smarthub')
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    
+    # Database Performance Optimization (Pooling)
+    # Essential for Render -> Supabase latency
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_size": 10,           # Maintain 10 steady connections
+        "max_overflow": 20,       # Allow burst up to 30
+        "pool_recycle": 300,      # Refresh connections every 5 mins
+        "pool_pre_ping": True,     # Verify connection health before use
+        "connect_args": {
+            "connect_timeout": 10 # Prevent hanging on initial connect
+        }
+    }
 
     # Upload limits
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5 MB hard limit
