@@ -673,8 +673,8 @@ def upload_for_attendance(activity_id):
     if activity.student_id != current_user.id:
         return jsonify({'error': 'Unauthorized'}), 403
 
-    # Only allow for pending_upload records
-    if activity.status != 'pending_upload':
+    # Only allow for pending_upload or previously rejected records
+    if activity.status not in ['pending_upload', 'rejected']:
         return jsonify({'error': 'This activity is not awaiting certificate upload.'}), 400
 
     if 'file' not in request.files:
