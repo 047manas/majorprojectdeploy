@@ -105,6 +105,11 @@ def edit_user(user_id):
     
     if not full_name:
         return jsonify({'error': 'Full Name is required.'}), 400
+    if not email:
+        return jsonify({'error': 'Email is required.'}), 400
+
+    import logging
+    logging.info(f"Admin {current_user.email} attempting to update user {user_id}. New email: {email}")
 
     existing_email = User.query.filter(User.email == email, User.id != user_id).first()
     if existing_email:
@@ -121,6 +126,7 @@ def edit_user(user_id):
             if role != 'admin':
                 return jsonify({'error': "Cannot change role of default admin."}), 400
 
+    # Apply updates
     user.full_name = full_name
     user.email = email
     user.role = role
@@ -133,7 +139,14 @@ def edit_user(user_id):
     if password:
             user.password_hash = generate_password_hash(password)
     
-    db.session.commit()
+    try:
+        db.session.commit()
+        logging.info(f"User {user_id} updated successfully. Email set to: {user.email}")
+    except Exception as e:
+        db.session.rollback()
+        logging.error(f"Failed to update user {user_id}: {str(e)}")
+        return jsonify({'error': 'Database update failed. Please try again.'}), 500
+
     return jsonify({'success': True, 'message': 'User updated successfully.'})
 
 

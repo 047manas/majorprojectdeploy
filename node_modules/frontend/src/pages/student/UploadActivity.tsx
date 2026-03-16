@@ -60,7 +60,7 @@ const UploadActivity = () => {
     }, []);
 
     // Filtered activity types based on campus category
-    const filteredTypes = types.filter(t => (t as any).default_campus_type === campusType || campusType === 'off_campus');
+    const filteredTypes = types.filter(t => (t as any).default_campus_type === campusType);
 
     // Handle pre-fill from notification click
     useEffect(() => {
