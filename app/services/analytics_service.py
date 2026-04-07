@@ -268,11 +268,62 @@ class AnalyticsService:
 
     @staticmethod
     def generate_naac_excel(filters=None, export_type='full'):
-        # Keep basic export for compatibility
         output = io.BytesIO()
         writer = pd.ExcelWriter(output, engine='openpyxl')
-        kpis = AnalyticsService.get_institution_kpis(filters)
-        pd.DataFrame([kpis]).to_excel(writer, sheet_name='Summary', index=False)
+        
+        # Enforce verified activities only for NAAC report
+        if filters is None:
+            filters = {}
+        filters['verified_only'] = True
+        
+        base_q = AnalyticsService._get_base_query(filters)
+        activities = base_q.order_by(StudentActivity.id.asc()).all()
+        
+        data = []
+        for idx, act in enumerate(activities, 1):
+            category_name = act.activity_type.name if act.activity_type else (act.custom_category or 'Other')
+            weightage = act.activity_type.weightage if act.activity_type else 0
+            
+            # Format statuses
+            status_map = {
+                'auto_verified': 'Auto Verified',
+                'faculty_verified': 'Faculty Verified',
+                'hod_approved': 'HOD Approved'
+            }
+            display_status = status_map.get(act.status, act.status)
+            
+            campus_map = {
+                'in_campus': 'In-Campus',
+                'off_campus': 'Off-Campus'
+            }
+            display_campus = campus_map.get(act.campus_type, act.campus_type)
+            
+            data.append({
+                "Sr. No.": idx,
+                "Student Name": act.student.full_name if act.student else 'Unknown',
+                "Roll Number": act.student.institution_id if act.student else 'Unknown',
+                "Department": act.student.department if act.student else 'Unknown',
+                "Activity Title": act.title,
+                "Activity Type/Category": category_name,
+                "Start Date": act.start_date.strftime("%Y-%m-%d") if act.start_date else 'N/A',
+                "End Date": act.end_date.strftime("%Y-%m-%d") if act.end_date else 'N/A',
+                "Issuer/Organizer": act.issuer_name or act.organizer or 'Unknown',
+                "Verification Status": display_status,
+                "Campus Type": display_campus,
+                "Verification Mode": act.verification_mode or 'Manual',
+                "Points Awarded": weightage
+            })
+            
+        if not data:
+            df = pd.DataFrame(columns=[
+                "Sr. No.", "Student Name", "Roll Number", "Department", "Activity Title",
+                "Activity Type/Category", "Start Date", "End Date", "Issuer/Organizer",
+                "Verification Status", "Campus Type", "Verification Mode", "Points Awarded"
+            ])
+        else:
+            df = pd.DataFrame(data)
+            
+        df.to_excel(writer, sheet_name='NAAC_Report', index=False)
         writer.close(); output.seek(0)
         return output
 
